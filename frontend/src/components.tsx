@@ -6,6 +6,7 @@ import {
   CircleX,
   Clock3,
   Database,
+  Globe2,
   TriangleAlert,
 } from "lucide-react";
 import {
@@ -256,6 +257,8 @@ export function ServiceTable({
                   <span className="service-icon">
                     {service.id === "postgres" ? (
                       <Database size={18} />
+                    ) : service.id === "dns" ? (
+                      <Globe2 size={18} />
                     ) : (
                       <Activity size={18} />
                     )}

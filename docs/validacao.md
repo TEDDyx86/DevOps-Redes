@@ -51,6 +51,19 @@ Há um aviso de depreciação da biblioteca Starlette sobre a integração de te
 - Layout SQL verificado em 390×844 e 1440×1000: largura do documento igual à largura útil da viewport, sem transbordamento. Console do navegador sem erros na conferência final.
 - Evidências: `docs/evidencias/postgres-desktop.jpg`, `postgres-mobile.jpg` e `postgres-indisponivel.jpg`. Resultado temporário sem credenciais: `tmp/postgres-e2e-result.json`.
 
+## Etapa DNS: 28/10/2026
+
+- **26 testes de API passaram**, incluindo contratos DNS, validação de respostas reais codificadas, endereço incorreto, NXDOMAIN, falha de um protocolo, latência, dados antigos e preservação das lacunas do histórico.
+- **6 testes de frontend passaram**, incluindo a participação do terceiro serviço no estado consolidado e o destino correto ao selecionar uma linha da tabela.
+- Build TypeScript/Vite concluído; `promtool` validou **10 regras** HTTP/SQL/DNS.
+- **18 verificações reais passaram** com `scripts/verify_dns.py`: resolução UDP/TCP dos registros, segundo nome, NXDOMAIN distinto de falha, consultas/s, SERVFAIL e sua taxa, parada real, ocultação de dados antigos, HTTP/SQL independentes, incidente, e-mail, recuperação e retorno das métricas.
+- O primeiro roteiro revelou que uma série de rcode recém-criada precisa de baseline e incremento posterior para formar uma taxa. O teste agora espera a coleta do contador e envia um segundo SERVFAIL, sem inventar valores.
+- Revisão independente encontrou e confirmou correção de lacunas no gráfico: a grade temporal recebe valores nulos antes das amostras, evitando ligar pontos através de uma indisponibilidade. Teste de regressão executado antes e depois da correção.
+- Navegação real: visão consolidada com três serviços, detalhe DNS aberto pela linha correspondente e seleção de uma hora. UDP/TCP e NOERROR aparecem com dados reais.
+- Layout verificado em 390×844 e 1440×1000: largura de rolagem igual à largura útil da viewport (375 e 1425 px). Console sem erros na conferência final.
+- Evidências: `docs/evidencias/dns-desktop.jpg` e `dns-mobile.jpg`. Resultado temporário sem credenciais em `tmp/dns-e2e-result.json`.
+- O DNS do host não foi alterado; portas UDP/TCP do CoreDNS continuam restritas à rede Compose.
+
 ## Requisitos ainda em construção
 
-DNS, SMTP monitorado, CPU/memória/I/O, pools e consultas lentas, detecção de anomalias e força bruta, monitoramento de arquivos, vulnerabilidades conhecidas, autenticação da interface e relatório ABNT. As etapas atuais entregam HTTP e PostgreSQL com infraestrutura de alertas.
+SMTP monitorado, CPU/memória/I/O, pools e consultas lentas, detecção de anomalias e força bruta, monitoramento de arquivos, vulnerabilidades conhecidas, autenticação da interface e relatório ABNT. As etapas atuais entregam HTTP, PostgreSQL e DNS com infraestrutura de alertas.

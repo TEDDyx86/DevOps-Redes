@@ -18,6 +18,8 @@ services:
       WEBHOOK_TOKEN: ${WEBHOOK_TOKEN:?Execute python scripts/configure.py}
       POSTGRES_MONITOR_DSN: postgresql://lab_monitor:${POSTGRES_MONITOR_PASSWORD:?Execute python scripts/configure.py}@postgres:5432/lab_network
       POSTGRES_WORKLOAD_DSN: postgresql://lab_workload:${POSTGRES_WORKLOAD_PASSWORD:?Execute python scripts/configure.py}@postgres:5432/lab_network
+      DNS_SERVER: dns
+      DNS_PORT: 1053
     ports: ["127.0.0.1:8000:8000"]
     volumes: ["incidents:/data"]
     healthcheck:
@@ -50,6 +52,20 @@ services:
       interval: 5s
       timeout: 3s
       retries: 12
+    networks: [monitoring]
+    restart: unless-stopped
+    security_opt: [no-new-privileges:true]
+
+  dns:
+    image: coredns/coredns:1.15.0
+    command: ["-conf", "/etc/coredns/Corefile"]
+    user: "65532:65532"
+    cap_drop: [ALL]
+    # Official binary carries this file capability; keep it in the bounding set.
+    cap_add: [NET_BIND_SERVICE]
+    volumes:
+      - ./infra/dns/Corefile:/etc/coredns/Corefile:ro
+      - ./infra/dns/db.aularedes.test:/etc/coredns/db.aularedes.test:ro
     networks: [monitoring]
     restart: unless-stopped
     security_opt: [no-new-privileges:true]

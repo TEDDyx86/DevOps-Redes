@@ -1,7 +1,32 @@
 export type Status = "ok" | "warning" | "critical" | "unknown";
 export type Window = "15m" | "1h" | "6h" | "24h";
 export type Mode = "normal" | "slow" | "offline";
-export type Page = "overview" | "service" | "postgres" | "incidents" | "lab";
+export type Page =
+  | "overview"
+  | "service"
+  | "postgres"
+  | "dns"
+  | "incidents"
+  | "lab";
+
+export interface DNSOverview {
+  window: Window;
+  generated_at: number;
+  service: ServiceSummary;
+  question: { name: string; type: string; expected: string };
+  stats: {
+    available: boolean;
+    udp_success: boolean | null;
+    tcp_success: boolean | null;
+    udp_rcode: string | null;
+    tcp_rcode: string | null;
+    qps: number | null;
+    server_error_percent: number | null;
+    nxdomain_percent: number | null;
+    server_p95_ms: number | null;
+  };
+  series: ChartSample[];
+}
 
 export interface ServiceSummary {
   id: string;

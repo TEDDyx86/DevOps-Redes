@@ -1470,6 +1470,41 @@ h1 {
     margin-inline: 14px;
   }
 }
+.dns-record-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px 35px;
+  padding: 0 21px 22px;
+}
+.dns-record-details > div > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.dns-record-details code {
+  font:
+    12px "IBM Plex Mono",
+    monospace;
+  overflow-wrap: anywhere;
+}
+.dns-record-details small {
+  font-size: 9px;
+}
+.dns-secondary {
+  padding: 23px 0;
+  align-items: flex-start;
+}
+.dns-secondary p {
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--muted);
+  max-width: 360px;
+  flex: 1;
+  min-width: 180px;
+}
 .postgres-runbook {
   margin-top: 22px;
 }

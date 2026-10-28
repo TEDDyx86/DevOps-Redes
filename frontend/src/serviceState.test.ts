@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { combinedStatus, currentService } from "./serviceState";
+import { combinedStatus, currentService, servicePage } from "./serviceState";
 import type { ServiceSummary } from "./types";
 
 const service: ServiceSummary = {
@@ -14,6 +14,16 @@ const service: ServiceSummary = {
 };
 
 describe("serviços independentes na visão consolidada", () => {
+  it("abre o detalhe correspondente ao serviço selecionado", () => {
+    expect(servicePage("dns")).toBe("dns");
+    expect(servicePage("postgres")).toBe("postgres");
+    expect(servicePage("web-demo")).toBe("service");
+  });
+  it("inclui DNS sem esconder falha ou ausência do terceiro serviço", () => {
+    expect(combinedStatus(["ok", "ok", "critical"])).toBe("critical");
+    expect(combinedStatus(["ok", "ok", "unknown"])).toBe("unknown");
+    expect(combinedStatus(["ok", "ok", "ok"])).toBe("ok");
+  });
   it("não deixa HTTP saudável esconder banco indisponível", () => {
     expect(combinedStatus(["ok", "critical"])).toBe("critical");
     expect(combinedStatus(["ok", "unknown"])).toBe("unknown");

@@ -4,7 +4,7 @@ Plataforma de monitoramento para o trabalho final de Redes de Computadores e Int
 
 ## Estado da construção
 
-**Etapa 2: HTTP + PostgreSQL.** Dois serviços reais, sondas independentes, séries no Prometheus, dashboards React, incidentes persistidos e e-mails locais pelo Alertmanager/Mailpit. DNS, SMTP monitorado e monitoramentos de segurança são as próximas entregas.
+**Etapa 3: HTTP + PostgreSQL + DNS.** Três serviços reais, sondas independentes, séries no Prometheus, dashboards React, incidentes persistidos e e-mails locais pelo Alertmanager/Mailpit. SMTP monitorado e monitoramentos de segurança são as próximas entregas.
 
 ## Iniciar no Windows
 
@@ -26,6 +26,9 @@ Ou execute `./scripts/start.ps1` no PowerShell. Se a política do computador imp
 - Alertmanager: http://localhost:9093
 - Serviço HTTP monitorado: http://localhost:8001/work
 - Dashboard PostgreSQL: http://localhost:8000/#postgres
+- Dashboard DNS: http://localhost:8000/#dns
+
+CoreDNS responde por uma zona local em UDP/TCP, sem alterar o DNS do computador nem publicar portas no host. A sonda verifica `app.aularedes.test. A = 192.0.2.10`; o painel separa nomes inexistentes (NXDOMAIN) de erros do servidor.
 
 O banco SQL usa PostgreSQL 17.11 com volume persistente e usuários separados para administração, monitoramento e carga. Sua porta não é publicada no host. Ao atualizar uma instalação da etapa HTTP, execute novamente `python scripts/configure.py` antes do Compose para gerar os três novos segredos SQL.
 
@@ -96,9 +99,18 @@ Para verificar especificamente o PostgreSQL, incluindo parada real e preservaç�
 
 O banco é restaurado ao final do teste, inclusive se uma verificação falhar.
 
+Para verificar o DNS, incluindo UDP/TCP, NXDOMAIN/SERVFAIL e parada/recuperação:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/verify_dns.py
+```
+
+O DNS é restaurado ao final do teste. A documentação traz também os comandos de demonstração manual.
+
 - [Arquitetura e métricas](docs/arquitetura.md)
 - [Runbook HTTP e playbook de incidentes](docs/runbook-http.md)
 - [Runbook PostgreSQL](docs/runbook-postgres.md)
+- [Runbook DNS](docs/runbook-dns.md)
 - [Roadmap dos 20 dias](docs/roadmap.md)
 - [Validação e limites](docs/validacao.md)
 

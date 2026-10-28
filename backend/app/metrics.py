@@ -26,14 +26,14 @@ def scalar(data):
     return finite(result[0]["value"][1]) if result else None
 
 
-def classify(success, latency, checked_at, now):
+def classify(success, latency, checked_at, now, warning_seconds=.5):
     if success is None or checked_at is None or now - checked_at > 20 or checked_at > now + 5:
         return "unknown"
     if success == 0:
         return "critical"
     if latency is None:
         return "unknown"
-    return "warning" if latency > 0.5 else "ok"
+    return "warning" if latency > warning_seconds else "ok"
 
 
 class PrometheusClient:

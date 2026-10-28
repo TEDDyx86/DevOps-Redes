@@ -1,0 +1,10 @@
+aularedes.test:1053 {
+    errors
+    template IN A aularedes.test {
+        match ^falha\.aularedes\.test\.$
+        rcode SERVFAIL
+        fallthrough
+    }
+    file /etc/coredns/db.aularedes.test aularedes.test
+    prometheus 0.0.0.0:9153
+}

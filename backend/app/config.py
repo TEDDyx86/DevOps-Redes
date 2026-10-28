@@ -15,6 +15,10 @@ class Settings:
     frontend_path: Path = Path("frontend/dist")
     postgres_monitor_dsn: str = ""
     postgres_workload_dsn: str = ""
+    dns_server: str = ""
+    dns_port: int = 1053
+    dns_name: str = "app.aularedes.test."
+    dns_expected: str = "192.0.2.10"
 
     @classmethod
     def from_env(cls):
@@ -28,4 +32,6 @@ class Settings:
             frontend_path=Path(os.getenv("FRONTEND_PATH", "frontend/dist")),
             postgres_monitor_dsn=os.getenv("POSTGRES_MONITOR_DSN", ""),
             postgres_workload_dsn=os.getenv("POSTGRES_WORKLOAD_DSN", ""),
+            dns_server=os.getenv("DNS_SERVER", ""),
+            dns_port=int(os.getenv("DNS_PORT", "1053")),
         )

@@ -1,0 +1,9 @@
+$ORIGIN aularedes.test.
+$TTL 60
+@ IN SOA ns.aularedes.test. admin.aularedes.test. (
+    2026102801 3600 600 86400 60
+)
+@ IN NS ns.aularedes.test.
+ns IN A 192.0.2.53
+app IN A 192.0.2.10
+db IN A 192.0.2.20

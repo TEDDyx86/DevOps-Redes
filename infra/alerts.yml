@@ -1,4 +1,33 @@
 groups:
+  - name: dns-laboratorio
+    rules:
+      - alert: DNSIndisponivel
+        expr: dns_probe_success{job="platform"} == 0
+        for: 15s
+        labels:
+          severity: critical
+          service: dns
+        annotations:
+          summary: DNS indisponível ou resposta incorreta
+          description: O registro esperado falhou em UDP ou TCP por pelo menos 15 segundos. Verifique CoreDNS e a zona aularedes.test.
+      - alert: DNSLento
+        expr: (dns_probe_duration_seconds{job="platform"} > 0.1) and (dns_probe_success{job="platform"} == 1)
+        for: 30s
+        labels:
+          severity: warning
+          service: dns
+        annotations:
+          summary: Resolução DNS lenta
+          description: A maior latência das sondas UDP/TCP ultrapassou 100 ms por pelo menos 30 segundos.
+      - alert: DNSErrosElevados
+        expr: sum(rate(coredns_dns_responses_total{job="dns",rcode=~"SERVFAIL|REFUSED|FORMERR|NOTIMP"}[1m])) / sum(rate(coredns_dns_responses_total{job="dns"}[1m])) > 0.1
+        for: 30s
+        labels:
+          severity: warning
+          service: dns
+        annotations:
+          summary: DNS com erros de servidor elevados
+          description: Mais de 10% das respostas são erros de servidor há pelo menos 30 segundos. NXDOMAIN é acompanhado separadamente.
   - name: http-laboratorio
     rules:
       - alert: HTTPIndisponivel

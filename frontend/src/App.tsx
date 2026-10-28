@@ -30,8 +30,16 @@ import {
 } from "./components";
 import LabView from "./Lab";
 import PostgresView from "./Postgres";
-import { combinedStatus, currentService, emptyPostgres } from "./serviceState";
+import DNSView from "./DNS";
+import {
+  combinedStatus,
+  currentService,
+  emptyPostgres,
+  emptyDNS,
+  servicePage,
+} from "./serviceState";
 import type {
+  DNSOverview,
   Incident,
   Lab,
   Overview,
@@ -44,6 +52,7 @@ const navigation: { id: Page; label: string; icon: typeof Activity }[] = [
   { id: "overview", label: "Visão geral", icon: LayoutDashboard },
   { id: "service", label: "Serviço HTTP", icon: Server },
   { id: "postgres", label: "PostgreSQL", icon: Database },
+  { id: "dns", label: "DNS", icon: Globe2 },
   { id: "incidents", label: "Incidentes", icon: Bell },
   { id: "lab", label: "Laboratório", icon: FlaskConical },
 ];
@@ -59,6 +68,10 @@ const pageTitles: Record<Page, { title: string; subtitle: string }> = {
   postgres: {
     title: "PostgreSQL",
     subtitle: "Consultas, conexões e transações do banco monitorado.",
+  },
+  dns: {
+    title: "DNS",
+    subtitle: "Resolução de nomes, consultas e respostas do servidor local.",
   },
   incidents: {
     title: "Incidentes",
@@ -84,6 +97,8 @@ export default function App() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [postgres, setPostgres] = useState<PostgresOverview | null>(null);
   const [postgresError, setPostgresError] = useState<string | null>(null);
+  const [dnsData, setDNS] = useState<DNSOverview | null>(null);
+  const [dnsError, setDNSError] = useState<string | null>(null);
   const [lab, setLab] = useState<Lab | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [incidentError, setIncidentError] = useState(false);
@@ -108,6 +123,7 @@ export default function App() {
     setLoading(true);
     setData(null);
     setPostgres(null);
+    setDNS(null);
     async function load() {
       if (running) return;
       running = true;
@@ -122,9 +138,23 @@ export default function App() {
         request<PostgresOverview>(`/api/postgres?window=${window}`, {
           signal: controller.signal,
         }),
+        request<DNSOverview>(`/api/dns?window=${window}`, {
+          signal: controller.signal,
+        }),
       ]);
       if (controller.signal.aborted) return;
-      const [overview, history, laboratory, database] = results;
+      const [overview, history, laboratory, database, dns] = results;
+      if (dns.status === "fulfilled") {
+        setDNS(dns.value);
+        setDNSError(null);
+      } else {
+        setDNS(null);
+        setDNSError(
+          dns.reason instanceof Error
+            ? dns.reason.message
+            : "Sem conexão com as métricas DNS.",
+        );
+      }
       if (database.status === "fulfilled") {
         setPostgres(database.value);
         setPostgresError(null);
@@ -205,6 +235,35 @@ export default function App() {
           : postgres.stats,
       }
     : null;
+  const dnsCurrent = dnsData
+    ? currentService(dnsData.service, dnsData.generated_at, now)
+    : emptyDNS;
+  const dnsStale =
+    !!dnsData &&
+    (now - dnsData.generated_at > 20 ||
+      dnsData.service.checked_at == null ||
+      now - dnsData.service.checked_at > 20 ||
+      dnsData.service.checked_at > now + 5);
+  const dnsDisplay = dnsData
+    ? {
+        ...dnsData,
+        service: dnsCurrent,
+        stats: dnsStale
+          ? {
+              ...dnsData.stats,
+              available: false,
+              udp_success: null,
+              tcp_success: null,
+              udp_rcode: null,
+              tcp_rcode: null,
+              qps: null,
+              server_error_percent: null,
+              nxdomain_percent: null,
+              server_p95_ms: null,
+            }
+          : dnsData.stats,
+      }
+    : null;
   const httpCurrent = service ?? {
     id: "web-demo",
     name: "Aplicação HTTP",
@@ -217,7 +276,11 @@ export default function App() {
   };
   const healthStatus =
     page === "overview"
-      ? combinedStatus([httpCurrent.status, pgCurrent.status])
+      ? combinedStatus([
+          httpCurrent.status,
+          pgCurrent.status,
+          dnsCurrent.status,
+        ])
       : httpCurrent.status;
   const healthy = healthStatus === "ok";
   const title = pageTitles[page];
@@ -266,10 +329,6 @@ export default function App() {
           PRÓXIMAS INTEGRAÇÕES
         </div>
         <div className="planned-nav">
-          <Globe2 size={16} />
-          DNS<span>Planejado</span>
-        </div>
-        <div className="planned-nav">
           <Mail size={16} />
           SMTP<span>Planejado</span>
         </div>
@@ -279,7 +338,7 @@ export default function App() {
         </div>
         <div className="sidebar-bottom">
           <div className="version-pill">
-            ETAPA 02 <span>HTTP + SQL</span>
+            ETAPA 03 <span>HTTP · SQL · DNS</span>
           </div>
           <p>
             Da requisição ao alerta.
@@ -374,7 +433,9 @@ export default function App() {
               estar desatualizado.
             </div>
           )}
-          {page === "postgres" ? (
+          {page === "dns" ? (
+            <DNSView data={dnsDisplay} error={dnsError} incidents={incidents} />
+          ) : page === "postgres" ? (
             <PostgresView
               data={pgDisplay}
               incidents={incidents}
@@ -424,7 +485,7 @@ export default function App() {
                   <p>
                     {healthy
                       ? page === "overview"
-                        ? "As sondas HTTP e SQL responderam com sucesso na última verificação."
+                        ? "As sondas HTTP, SQL e DNS responderam com sucesso na última verificação."
                         : "A sonda HTTP respondeu com sucesso na última verificação."
                       : healthStatus === "critical"
                         ? "Uma sonda recebeu uma falha. A regra confirmará o incidente após 15 segundos."
@@ -446,9 +507,9 @@ export default function App() {
                     Serviços monitorados <Server size={15} />
                   </span>
                   <strong>
-                    02<small> / 04 previstos</small>
+                    03<small> / 04 previstos</small>
                   </strong>
-                  <p>HTTP e PostgreSQL integrados</p>
+                  <p>HTTP, PostgreSQL e DNS integrados</p>
                 </div>
                 <div className="metric">
                   <span>
@@ -518,7 +579,7 @@ export default function App() {
                     <h2>
                       Serviços monitorados{" "}
                       <span className="count-badge">
-                        {page === "overview" ? 2 : 1}
+                        {page === "overview" ? 3 : 1}
                       </span>
                     </h2>
                     <p>Estado observado na última coleta.</p>
@@ -534,12 +595,10 @@ export default function App() {
                 <ServiceTable
                   services={
                     page === "overview"
-                      ? [httpCurrent, pgCurrent]
+                      ? [httpCurrent, pgCurrent, dnsCurrent]
                       : [httpCurrent]
                   }
-                  onSelect={(id) =>
-                    go(id === "postgres" ? "postgres" : "service")
-                  }
+                  onSelect={(id) => go(servicePage(id))}
                 />
                 <CollectionNote />
               </section>
@@ -602,8 +661,8 @@ export default function App() {
               <b>·</b>Atualização a cada 5 s
             </span>
             <span>
-              AulaRedes <b>/</b> HTTP + PostgreSQL{" "}
-              <span className="version">v0.2</span>
+              AulaRedes <b>/</b> HTTP · SQL · DNS{" "}
+              <span className="version">v0.3</span>
             </span>
           </footer>
         </main>

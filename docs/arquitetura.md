@@ -15,7 +15,15 @@ flowchart LR
     A -->|SMTP| M[Mailpit: caixa local]
 ```
 
-O frontend compilado é servido pelo FastAPI, no mesmo host e porta. Apenas o backend acessa Prometheus a partir da interface. Consultas PromQL são fixas no código, sem entrada livre do navegador. O backend executa as sondas HTTP e PostgreSQL e a carga SQL em tarefas independentes.
+O frontend compilado é servido pelo FastAPI, no mesmo host e porta. Apenas o backend acessa Prometheus a partir da interface. Consultas PromQL são fixas no código, sem entrada livre do navegador. O backend executa sondas HTTP, PostgreSQL e DNS e seus geradores em tarefas independentes.
+
+## Fluxo DNS
+
+CoreDNS hospeda `aularedes.test` em UDP/TCP 1053, apenas na rede Compose, sem substituir o resolvedor do host. A sonda dnspython consulta diretamente o IP do container, sem cache, e exige o registro A esperado pelos dois protocolos. A duração é a maior das duas consultas.
+
+Sondas são exportadas no `/metrics` da API; Prometheus também coleta métricas nativas do CoreDNS na porta 9153 (`job=dns`). `/api/dns` combina as duas fontes: falha de resolução é crítica; ausência do exporter com resolução funcionando remove apenas as estatísticas detalhadas. Resultados antigos expiram em 20 s.
+
+Consultas/s e p95 de processamento vêm do CoreDNS. NXDOMAIN é separado de SERVFAIL/REFUSED/FORMERR/NOTIMP. Há um registro SERVFAIL intencional para verificação; a carga periódica não o utiliza. A visão geral combina três estados, e incidentes DNS usam o mesmo webhook autenticado e armazenamento independente.
 
 ## Componentes e dados
 

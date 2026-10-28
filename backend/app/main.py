@@ -20,6 +20,8 @@ from .probe import Probe
 from .storage import IncidentStore
 from .postgres_metrics import PostgresMetrics
 from .postgres_probe import PostgresProbe, run_workload
+from .dns_metrics import DNSMetrics
+from .dns_probe import DNSProbe, run_dns_workload
 
 
 class Alert(BaseModel):
@@ -47,23 +49,26 @@ def create_app(settings: Settings | None = None, transport=None):
         app.state.store = IncidentStore(settings.database_path)
         app.state.probe = Probe()
         app.state.postgres_probe = PostgresProbe()
+        app.state.dns_probe = DNSProbe()
         async with httpx.AsyncClient(timeout=5, transport=transport, trust_env=False) as client:
             app.state.client = client
             app.state.prometheus = PrometheusClient(client, settings.prometheus_url)
             task = asyncio.create_task(app.state.probe.run(client, settings.demo_url, settings.probe_interval)) if settings.enable_probe else None
             postgres_task = asyncio.create_task(app.state.postgres_probe.run(settings.postgres_monitor_dsn)) if settings.postgres_monitor_dsn else None
             workload_task = asyncio.create_task(run_workload(settings.postgres_workload_dsn)) if settings.postgres_workload_dsn else None
+            dns_task = asyncio.create_task(app.state.dns_probe.run(settings.dns_server, settings.dns_port, settings.dns_name, settings.dns_expected)) if settings.dns_server else None
+            dns_workload_task = asyncio.create_task(run_dns_workload(settings.dns_server, settings.dns_port)) if settings.dns_server else None
             try:
                 yield
             finally:
-                tasks = [item for item in [task, postgres_task, workload_task] if item is not None]
+                tasks = [item for item in [task, postgres_task, workload_task, dns_task, dns_workload_task] if item is not None]
                 for item in tasks:
                     item.cancel()
                 for item in tasks:
                     with suppress(asyncio.CancelledError):
                         await item
 
-    app = FastAPI(title="AulaRedes API", version="0.2.0", lifespan=lifespan)
+    app = FastAPI(title="AulaRedes API", version="0.3.0", lifespan=lifespan)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "api", "testserver"])
 
     def require_lab(request: Request, x_lab_token: str = Header(default="")):
@@ -75,14 +80,23 @@ def create_app(settings: Settings | None = None, transport=None):
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "version": "0.2.0"}
+        return {"status": "ok", "version": "0.3.0"}
 
     @app.get("/metrics")
     def metrics(request: Request):
         # Avoid exporting zero-initialized gauges before the first real probe.
         content = generate_latest(request.app.state.probe.registry) if request.app.state.probe.ready else b""
         content += generate_latest(request.app.state.postgres_probe.registry)
+        content += generate_latest(request.app.state.dns_probe.registry)
         return Response(content=content, media_type=CONTENT_TYPE_LATEST)
+
+    @app.get("/api/dns")
+    async def dns_overview(request: Request, window: Literal["15m", "1h", "6h", "24h"] = "15m"):
+        try:
+            return await DNSMetrics(request.app.state.prometheus, settings.dns_name, settings.dns_expected).overview(window)
+        except (httpx.HTTPError, ValueError, KeyError, TypeError):
+            logging.exception("Falha ao consultar métricas DNS")
+            raise HTTPException(503, "Prometheus indisponível. Não foi possível consultar as métricas DNS.") from None
 
     @app.get("/api/postgres")
     async def postgres(request: Request, window: Literal["15m", "1h", "6h", "24h"] = "15m"):

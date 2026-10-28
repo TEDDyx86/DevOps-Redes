@@ -1,4 +1,8 @@
-import type { ServiceSummary, Status } from "./types";
+import type { Page, ServiceSummary, Status } from "./types";
+
+export function servicePage(id: string): Page {
+  return id === "postgres" || id === "dns" ? id : "service";
+}
 
 export function currentService(
   service: ServiceSummary,
@@ -34,6 +38,17 @@ export const emptyPostgres: ServiceSummary = {
   name: "PostgreSQL",
   protocol: "SQL",
   target: "postgres:5432/lab_network",
+  status: "unknown",
+  checked_at: null,
+  latency_ms: null,
+  availability_percent: null,
+};
+
+export const emptyDNS: ServiceSummary = {
+  id: "dns",
+  name: "DNS",
+  protocol: "DNS",
+  target: "dns:1053 / aularedes.test",
   status: "unknown",
   checked_at: null,
   latency_ms: null,
