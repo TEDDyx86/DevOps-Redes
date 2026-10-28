@@ -19,6 +19,8 @@ class Settings:
     dns_port: int = 1053
     dns_name: str = "app.aularedes.test."
     dns_expected: str = "192.0.2.10"
+    smtp_host: str = ""
+    smtp_port: int = 2525
 
     @classmethod
     def from_env(cls):
@@ -34,4 +36,6 @@ class Settings:
             postgres_workload_dsn=os.getenv("POSTGRES_WORKLOAD_DSN", ""),
             dns_server=os.getenv("DNS_SERVER", ""),
             dns_port=int(os.getenv("DNS_PORT", "1053")),
+            smtp_host=os.getenv("SMTP_HOST", ""),
+            smtp_port=int(os.getenv("SMTP_PORT", "2525")),
         )

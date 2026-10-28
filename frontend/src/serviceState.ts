@@ -1,7 +1,7 @@
 import type { Page, ServiceSummary, Status } from "./types";
 
 export function servicePage(id: string): Page {
-  return id === "postgres" || id === "dns" ? id : "service";
+  return id === "postgres" || id === "dns" || id === "smtp" ? id : "service";
 }
 
 export function currentService(
@@ -49,6 +49,17 @@ export const emptyDNS: ServiceSummary = {
   name: "DNS",
   protocol: "DNS",
   target: "dns:1053 / aularedes.test",
+  status: "unknown",
+  checked_at: null,
+  latency_ms: null,
+  availability_percent: null,
+};
+
+export const emptySMTP: ServiceSummary = {
+  id: "smtp",
+  name: "SMTP",
+  protocol: "SMTP",
+  target: "smtp:2525",
   status: "unknown",
   checked_at: null,
   latency_ms: null,

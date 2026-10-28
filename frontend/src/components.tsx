@@ -7,6 +7,7 @@ import {
   Clock3,
   Database,
   Globe2,
+  Mail,
   TriangleAlert,
 } from "lucide-react";
 import {
@@ -72,7 +73,7 @@ export function SignalChart({
   unit,
 }: {
   data: ChartSample[];
-  metric: "rps" | "qps" | "latency_ms";
+  metric: "rps" | "qps" | "messages_per_minute" | "latency_ms";
   title: string;
   subtitle: string;
   unit: string;
@@ -259,6 +260,8 @@ export function ServiceTable({
                       <Database size={18} />
                     ) : service.id === "dns" ? (
                       <Globe2 size={18} />
+                    ) : service.id === "smtp" ? (
+                      <Mail size={18} />
                     ) : (
                       <Activity size={18} />
                     )}

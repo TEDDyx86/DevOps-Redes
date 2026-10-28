@@ -1570,3 +1570,32 @@ h1 {
     scroll-behavior: auto !important;
   }
 }
+.smtp-note {
+  padding: 0 24px 20px;
+  line-height: 1.65;
+}
+.smtp-summary {
+  padding: 21px;
+  margin-bottom: 22px;
+}
+.smtp-path {
+  padding: 0 21px 20px;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.smtp-runbook {
+  margin-top: 0;
+}
+.smtp-runbook .runbook-steps {
+  grid-template-columns: 1fr;
+  gap: 18px;
+  padding-left: 39px;
+}
+.smtp-runbook .runbook-steps strong {
+  display: block;
+  font-size: 11px;
+  margin-bottom: 9px;
+}
+.smtp-runbook > .text-button {
+  margin: 0 21px 21px;
+}

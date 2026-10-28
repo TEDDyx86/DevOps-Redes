@@ -1,4 +1,42 @@
 groups:
+  - name: smtp-laboratorio
+    rules:
+      - alert: SMTPIndisponivel
+        expr: smtp_probe_success{job="platform"} == 0
+        for: 15s
+        labels:
+          severity: critical
+          service: smtp
+        annotations:
+          summary: SMTP indisponível
+          description: EHLO ou NOOP falhou por 15 segundos. Verifique o container smtp. O canal de alertas usa outro receptor.
+      - alert: SMTPFilaElevada
+        expr: smtp_queue_messages{job="smtp"} >= 5
+        for: 30s
+        labels:
+          severity: warning
+          service: smtp
+        annotations:
+          summary: SMTP com mensagens pendentes na fila
+          description: Pelo menos 5 mensagens aguardam entrega há 30 segundos. Verifique smtp-inbox e retome o receptor para esvaziar a fila.
+      - alert: SMTPLento
+        expr: (smtp_probe_duration_seconds{job="platform"} > 0.5) and (smtp_probe_success{job="platform"} == 1)
+        for: 30s
+        labels:
+          severity: warning
+          service: smtp
+        annotations:
+          summary: SMTP com resposta lenta
+          description: EHLO e NOOP excederam 500 ms por pelo menos 30 segundos.
+      - alert: SMTPEstatisticasIndisponiveis
+        expr: (up{job="smtp"} == 0) and on() (smtp_probe_success{job="platform"} == 1)
+        for: 30s
+        labels:
+          severity: warning
+          service: smtp
+        annotations:
+          summary: Estatísticas SMTP indisponíveis
+          description: SMTP responde, mas a coleta da fila ou o worker de entrega falhou. Verifique o container smtp.
   - name: dns-laboratorio
     rules:
       - alert: DNSIndisponivel

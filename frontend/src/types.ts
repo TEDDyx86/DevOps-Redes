@@ -6,6 +6,7 @@ export type Page =
   | "service"
   | "postgres"
   | "dns"
+  | "smtp"
   | "incidents"
   | "lab";
 
@@ -43,7 +44,28 @@ export interface ChartSample {
   timestamp: number;
   rps?: number | null;
   qps?: number | null;
+  messages_per_minute?: number | null;
   latency_ms: number | null;
+}
+
+export interface SMTPOverview {
+  window: Window;
+  generated_at: number;
+  service: ServiceSummary;
+  stats: {
+    available: boolean;
+    queue: number | null;
+    accepted: number | null;
+    delivered: number | null;
+    failed: number | null;
+    rejected: number | null;
+    last_minute: number | null;
+    last_hour: number | null;
+    delivery_percent: number | null;
+    delivery_p95_ms: number | null;
+    failed_attempts_per_minute: number | null;
+  };
+  series: ChartSample[];
 }
 
 export interface PostgresOverview {

@@ -18,6 +18,7 @@ describe("serviços independentes na visão consolidada", () => {
     expect(servicePage("dns")).toBe("dns");
     expect(servicePage("postgres")).toBe("postgres");
     expect(servicePage("web-demo")).toBe("service");
+    expect(servicePage("smtp")).toBe("smtp");
   });
   it("inclui DNS sem esconder falha ou ausência do terceiro serviço", () => {
     expect(combinedStatus(["ok", "ok", "critical"])).toBe("critical");

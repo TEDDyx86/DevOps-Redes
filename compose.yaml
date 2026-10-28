@@ -20,6 +20,8 @@ services:
       POSTGRES_WORKLOAD_DSN: postgresql://lab_workload:${POSTGRES_WORKLOAD_PASSWORD:?Execute python scripts/configure.py}@postgres:5432/lab_network
       DNS_SERVER: dns
       DNS_PORT: 1053
+      SMTP_HOST: smtp
+      SMTP_PORT: 2525
     ports: ["127.0.0.1:8000:8000"]
     volumes: ["incidents:/data"]
     healthcheck:
@@ -70,6 +72,27 @@ services:
     restart: unless-stopped
     security_opt: [no-new-privileges:true]
 
+  smtp:
+    <<: *platform
+    command: ["uvicorn", "demo.smtp_server:app", "--host", "0.0.0.0", "--port", "8027"]
+    volumes: ["smtp-data:/data"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import smtplib; s=smtplib.SMTP('127.0.0.1',2525,timeout=2); assert s.noop()[0]==250; s.quit()"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
+
+  smtp-inbox:
+    image: axllent/mailpit:v1.32.0
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: 200
+    volumes: ["smtp-mail:/data"]
+    ports: ["127.0.0.1:8026:8025"]
+    networks: [monitoring]
+    restart: unless-stopped
+    security_opt: [no-new-privileges:true]
+
   prometheus:
     image: prom/prometheus:v3.15.1
     command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus", "--storage.tsdb.retention.time=7d"]
@@ -112,3 +135,5 @@ volumes:
   alerts:
   mail:
   postgres-data:
+  smtp-data:
+  smtp-mail:

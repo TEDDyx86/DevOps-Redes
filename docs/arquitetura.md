@@ -15,7 +15,15 @@ flowchart LR
     A -->|SMTP| M[Mailpit: caixa local]
 ```
 
-O frontend compilado é servido pelo FastAPI, no mesmo host e porta. Apenas o backend acessa Prometheus a partir da interface. Consultas PromQL são fixas no código, sem entrada livre do navegador. O backend executa sondas HTTP, PostgreSQL e DNS e seus geradores em tarefas independentes.
+O frontend compilado é servido pelo FastAPI, no mesmo host e porta. Apenas o backend acessa Prometheus a partir da interface. Consultas PromQL são fixas no código, sem entrada livre do navegador. O backend executa sondas HTTP, PostgreSQL, DNS e SMTP e seus geradores em tarefas independentes.
+
+## Fluxo SMTP
+
+`smtp:2525` é um servidor aiosmtpd com fila SQLite em volume `smtp-data`. DATA recebe confirmação somente após persistência. Um worker encaminha via smtplib para `smtp-inbox:1025`, com retry de falhas temporárias após 5 s. O receptor possui caixa web localhost:8026 e volume `smtp-mail`; o Mailpit original em 8025 permanece exclusivo para alertas.
+
+A API mede EHLO + NOOP e gera mensagens reais a cada 15 s. Prometheus coleta fila, volumes, contadores persistentes e histograma aceitação → confirmação do receptor em `smtp:8027/metrics`. `/api/smtp` combina métricas com a sonda, ocultando dados antigos/indisponíveis; a visão geral reúne quatro serviços. Ausência do exportador não equivale a falha da conexão SMTP.
+
+Aceitação, tentativa, entrega e rejeição são eventos distintos. A taxa acumulada de entrega divide mensagens confirmadas por aceitas. A entrega é local, sem correio externo, e pode repetir uma mensagem após queda na janela entre confirmação remota e commit local. O [runbook SMTP](runbook-smtp.md) define métricas, limites e demonstrações reproduzíveis.
 
 ## Fluxo DNS
 

@@ -64,6 +64,18 @@ Há um aviso de depreciação da biblioteca Starlette sobre a integração de te
 - Evidências: `docs/evidencias/dns-desktop.jpg` e `dns-mobile.jpg`. Resultado temporário sem credenciais em `tmp/dns-e2e-result.json`.
 - O DNS do host não foi alterado; portas UDP/TCP do CoreDNS continuam restritas à rede Compose.
 
+## Etapa SMTP: 28/10/2026
+
+- **33 testes de API/protocolo/fila passaram**, incluindo SMTP real, destinatário externo rejeitado com 550, limite SIZE de 64 KiB, persistência, claim exclusivo, retry temporário, falha definitiva e recuperação de erros SQLite sem reenvio duplicado no processo ativo.
+- **6 testes de frontend passaram**, com navegação para o quarto serviço. Build TypeScript/Vite concluído; `promtool` validou **14 regras** HTTP/SQL/DNS/SMTP.
+- **23 verificações reais passaram** com `scripts/verify_smtp.py`: entrega correlacionada por Message-ID, rejeição contabilizada, volume e histograma, receptor parado com SMTP funcionando, fila crescente, tentativas falhas, aviso e e-mail, reinício do MTA preservando pendências/contadores, entrega de todas as mensagens após recuperação e resolução do aviso.
+- A mesma execução parou o SMTP monitorado, confirmou ocultação de estatísticas antigas, independência de HTTP/SQL/DNS, incidente crítico e e-mail recebido no outro Mailpit, recuperação e resolução com novo e-mail. Ambos os serviços foram restaurados no `finally`.
+- Revisão independente identificou parada do worker após erro temporário de armazenamento. Reproduzido em teste antes da correção: o worker agora repete claim/finish e conserva o resultado de envio enquanto o commit falha.
+- O primeiro roteiro integrado encontrou uma condição de corrida temporal: uma coleta concluída durante as consultas podia parecer ligeiramente posterior ao início da requisição, ocultando dados novos. Reproduzido em teste e corrigido com a mesma tolerância de relógio de 5 s da classificação. Amostras antigas continuam expirando em 20 s.
+- Layout SMTP conferido em 390×844 e 1440×1000: largura de rolagem igual à largura útil (375 e 1425 px), sem transbordamento horizontal.
+- Navegação real confirmou quatro serviços operacionais na visão geral, abertura do detalhe pela linha SMTP e console sem erros. Evidências: `docs/evidencias/smtp-desktop.jpg` e `smtp-mobile.jpg`.
+- Resultado temporário sem credenciais: `tmp/smtp-e2e-result.json`. O roteiro restaura os serviços e não envia correio externo.
+
 ## Requisitos ainda em construção
 
-SMTP monitorado, CPU/memória/I/O, pools e consultas lentas, detecção de anomalias e força bruta, monitoramento de arquivos, vulnerabilidades conhecidas, autenticação da interface e relatório ABNT. As etapas atuais entregam HTTP, PostgreSQL e DNS com infraestrutura de alertas.
+CPU/memória/I/O, pools e consultas lentas, detecção de anomalias e força bruta, monitoramento de arquivos, vulnerabilidades conhecidas, autenticação da interface e relatório ABNT. As etapas atuais entregam HTTP, PostgreSQL, DNS e SMTP com infraestrutura de alertas.

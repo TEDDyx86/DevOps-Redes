@@ -4,7 +4,7 @@ Plataforma de monitoramento para o trabalho final de Redes de Computadores e Int
 
 ## Estado da construção
 
-**Etapa 3: HTTP + PostgreSQL + DNS.** Três serviços reais, sondas independentes, séries no Prometheus, dashboards React, incidentes persistidos e e-mails locais pelo Alertmanager/Mailpit. SMTP monitorado e monitoramentos de segurança são as próximas entregas.
+**Etapa 4: HTTP + PostgreSQL + DNS + SMTP.** Quatro serviços reais, sondas independentes, séries no Prometheus, dashboards React, incidentes persistidos e e-mails locais pelo Alertmanager/Mailpit. SMTP inclui fila persistente e entrega local. Segurança é a próxima etapa.
 
 ## Iniciar no Windows
 
@@ -20,13 +20,19 @@ docker compose up -d --build --wait
 Ou execute `./scripts/start.ps1` no PowerShell. Se a política do computador impedir scripts, use os dois comandos acima, sem alterar a política.
 
 - Dashboard: **http://localhost:8000**
-- Caixa de e-mail de testes: **http://localhost:8025**
+- Caixa de e-mails de alerta: **http://localhost:8025**
+- Caixa de mensagens do SMTP monitorado: **http://localhost:8026**
 - Documentação da API: http://localhost:8000/docs
 - Prometheus: http://localhost:9090
 - Alertmanager: http://localhost:9093
 - Serviço HTTP monitorado: http://localhost:8001/work
 - Dashboard PostgreSQL: http://localhost:8000/#postgres
 - Dashboard DNS: http://localhost:8000/#dns
+- Dashboard SMTP: http://localhost:8000/#smtp
+
+O SMTP de laboratório usa Python/aiosmtpd e uma fila SQLite em volume separado. Aceita mensagens somente para `aluno@aularedes.test`, mede aceitação e entrega separadamente e tenta novamente quando o receptor cai. O canal de alertas usa outro Mailpit, portanto continua funcionando durante uma falha no SMTP monitorado. Detalhes e limites em [runbook SMTP](docs/runbook-smtp.md).
+
+Ao atualizar uma stack já em execução, reinicie o Prometheus após reconstruir os serviços para carregar mudanças nos arquivos montados: `docker compose restart prometheus`.
 
 CoreDNS responde por uma zona local em UDP/TCP, sem alterar o DNS do computador nem publicar portas no host. A sonda verifica `app.aularedes.test. A = 192.0.2.10`; o painel separa nomes inexistentes (NXDOMAIN) de erros do servidor.
 
@@ -107,13 +113,22 @@ Para verificar o DNS, incluindo UDP/TCP, NXDOMAIN/SERVFAIL e parada/recuperaçã
 
 O DNS é restaurado ao final do teste. A documentação traz também os comandos de demonstração manual.
 
+Para verificar SMTP, fila persistente, entrega e alertas em canal independente:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/verify_smtp.py
+```
+
+O roteiro para e recupera o receptor e o servidor SMTP, restaurando ambos ao final.
+
 - [Arquitetura e métricas](docs/arquitetura.md)
 - [Runbook HTTP e playbook de incidentes](docs/runbook-http.md)
 - [Runbook PostgreSQL](docs/runbook-postgres.md)
 - [Runbook DNS](docs/runbook-dns.md)
+- [Runbook SMTP](docs/runbook-smtp.md)
 - [Roadmap dos 20 dias](docs/roadmap.md)
 - [Validação e limites](docs/validacao.md)
 
 ## Limites de uso desta etapa
 
-Ambiente acadêmico local. As portas do host são vinculadas a `127.0.0.1`. Não exponha a plataforma à internet: ainda não existe autenticação de usuários no dashboard. Operações do laboratório exigem token e rejeitam origem diferente; o webhook tem segredo próprio. Os dados do laboratório são de teste. A caixa SMTP local recebe mensagens e não comprova entrega em provedores externos. Mailpit é o canal de alertas, não a integração SMTP monitorada do escopo.
+Ambiente acadêmico local. As portas do host são vinculadas a `127.0.0.1`. Não exponha a plataforma à internet: ainda não existe autenticação de usuários no dashboard. Operações do laboratório exigem token e rejeitam origem diferente; o webhook tem segredo próprio. Os dados do laboratório são de teste. A entrega SMTP é confirmada apenas no receptor local, sem comprovar entrega em provedores externos. Há duas caixas Mailpit separadas: alertas em 8025 e mensagens do serviço monitorado em 8026.

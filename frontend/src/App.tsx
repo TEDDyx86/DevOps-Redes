@@ -31,15 +31,18 @@ import {
 import LabView from "./Lab";
 import PostgresView from "./Postgres";
 import DNSView from "./DNS";
+import SMTPView from "./SMTP";
 import {
   combinedStatus,
   currentService,
   emptyPostgres,
   emptyDNS,
+  emptySMTP,
   servicePage,
 } from "./serviceState";
 import type {
   DNSOverview,
+  SMTPOverview,
   Incident,
   Lab,
   Overview,
@@ -53,6 +56,7 @@ const navigation: { id: Page; label: string; icon: typeof Activity }[] = [
   { id: "service", label: "Serviço HTTP", icon: Server },
   { id: "postgres", label: "PostgreSQL", icon: Database },
   { id: "dns", label: "DNS", icon: Globe2 },
+  { id: "smtp", label: "SMTP", icon: Mail },
   { id: "incidents", label: "Incidentes", icon: Bell },
   { id: "lab", label: "Laboratório", icon: FlaskConical },
 ];
@@ -77,6 +81,10 @@ const pageTitles: Record<Page, { title: string; subtitle: string }> = {
     title: "Incidentes",
     subtitle: "Acompanhe alertas confirmados e a recuperação dos serviços.",
   },
+  smtp: {
+    title: "SMTP",
+    subtitle: "Da aceitação à entrega: volume, fila e falhas do correio local.",
+  },
   lab: {
     title: "Laboratório",
     subtitle: "Provoque uma falha. Entenda o sinal. Acompanhe a recuperação.",
@@ -99,6 +107,8 @@ export default function App() {
   const [postgresError, setPostgresError] = useState<string | null>(null);
   const [dnsData, setDNS] = useState<DNSOverview | null>(null);
   const [dnsError, setDNSError] = useState<string | null>(null);
+  const [smtpData, setSMTP] = useState<SMTPOverview | null>(null);
+  const [smtpError, setSMTPError] = useState<string | null>(null);
   const [lab, setLab] = useState<Lab | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [incidentError, setIncidentError] = useState(false);
@@ -124,6 +134,7 @@ export default function App() {
     setData(null);
     setPostgres(null);
     setDNS(null);
+    setSMTP(null);
     async function load() {
       if (running) return;
       running = true;
@@ -141,9 +152,23 @@ export default function App() {
         request<DNSOverview>(`/api/dns?window=${window}`, {
           signal: controller.signal,
         }),
+        request<SMTPOverview>(`/api/smtp?window=${window}`, {
+          signal: controller.signal,
+        }),
       ]);
       if (controller.signal.aborted) return;
-      const [overview, history, laboratory, database, dns] = results;
+      const [overview, history, laboratory, database, dns, smtp] = results;
+      if (smtp.status === "fulfilled") {
+        setSMTP(smtp.value);
+        setSMTPError(null);
+      } else {
+        setSMTP(null);
+        setSMTPError(
+          smtp.reason instanceof Error
+            ? smtp.reason.message
+            : "Sem conexão com as métricas SMTP.",
+        );
+      }
       if (dns.status === "fulfilled") {
         setDNS(dns.value);
         setDNSError(null);
@@ -274,12 +299,43 @@ export default function App() {
     latency_ms: null,
     availability_percent: null,
   };
+  const smtpCurrent = smtpData
+    ? currentService(smtpData.service, smtpData.generated_at, now)
+    : emptySMTP;
+  const smtpStale =
+    !!smtpData &&
+    (now - smtpData.generated_at > 20 ||
+      smtpData.service.checked_at == null ||
+      now - smtpData.service.checked_at > 20 ||
+      smtpData.service.checked_at > now + 5);
+  const smtpDisplay = smtpData
+    ? {
+        ...smtpData,
+        service: smtpCurrent,
+        stats: smtpStale
+          ? {
+              available: false,
+              queue: null,
+              accepted: null,
+              delivered: null,
+              failed: null,
+              rejected: null,
+              last_minute: null,
+              last_hour: null,
+              delivery_percent: null,
+              delivery_p95_ms: null,
+              failed_attempts_per_minute: null,
+            }
+          : smtpData.stats,
+      }
+    : null;
   const healthStatus =
     page === "overview"
       ? combinedStatus([
           httpCurrent.status,
           pgCurrent.status,
           dnsCurrent.status,
+          smtpCurrent.status,
         ])
       : httpCurrent.status;
   const healthy = healthStatus === "ok";
@@ -329,16 +385,12 @@ export default function App() {
           PRÓXIMAS INTEGRAÇÕES
         </div>
         <div className="planned-nav">
-          <Mail size={16} />
-          SMTP<span>Planejado</span>
-        </div>
-        <div className="planned-nav">
           <ShieldCheck size={16} />
           Segurança<span>Planejado</span>
         </div>
         <div className="sidebar-bottom">
           <div className="version-pill">
-            ETAPA 03 <span>HTTP · SQL · DNS</span>
+            ETAPA 04 <span>HTTP · SQL · DNS · SMTP</span>
           </div>
           <p>
             Da requisição ao alerta.
@@ -433,7 +485,13 @@ export default function App() {
               estar desatualizado.
             </div>
           )}
-          {page === "dns" ? (
+          {page === "smtp" ? (
+            <SMTPView
+              data={smtpDisplay}
+              error={smtpError}
+              incidents={incidents}
+            />
+          ) : page === "dns" ? (
             <DNSView data={dnsDisplay} error={dnsError} incidents={incidents} />
           ) : page === "postgres" ? (
             <PostgresView
@@ -485,7 +543,7 @@ export default function App() {
                   <p>
                     {healthy
                       ? page === "overview"
-                        ? "As sondas HTTP, SQL e DNS responderam com sucesso na última verificação."
+                        ? "As sondas HTTP, SQL, DNS e SMTP responderam com sucesso na última verificação."
                         : "A sonda HTTP respondeu com sucesso na última verificação."
                       : healthStatus === "critical"
                         ? "Uma sonda recebeu uma falha. A regra confirmará o incidente após 15 segundos."
@@ -507,9 +565,9 @@ export default function App() {
                     Serviços monitorados <Server size={15} />
                   </span>
                   <strong>
-                    03<small> / 04 previstos</small>
+                    04<small> / 04 previstos</small>
                   </strong>
-                  <p>HTTP, PostgreSQL e DNS integrados</p>
+                  <p>HTTP, PostgreSQL, DNS e SMTP integrados</p>
                 </div>
                 <div className="metric">
                   <span>
@@ -579,7 +637,7 @@ export default function App() {
                     <h2>
                       Serviços monitorados{" "}
                       <span className="count-badge">
-                        {page === "overview" ? 3 : 1}
+                        {page === "overview" ? 4 : 1}
                       </span>
                     </h2>
                     <p>Estado observado na última coleta.</p>
@@ -595,7 +653,7 @@ export default function App() {
                 <ServiceTable
                   services={
                     page === "overview"
-                      ? [httpCurrent, pgCurrent, dnsCurrent]
+                      ? [httpCurrent, pgCurrent, dnsCurrent, smtpCurrent]
                       : [httpCurrent]
                   }
                   onSelect={(id) => go(servicePage(id))}
@@ -661,8 +719,8 @@ export default function App() {
               <b>·</b>Atualização a cada 5 s
             </span>
             <span>
-              AulaRedes <b>/</b> HTTP · SQL · DNS{" "}
-              <span className="version">v0.3</span>
+              AulaRedes <b>/</b> HTTP · SQL · DNS · SMTP{" "}
+              <span className="version">v0.4</span>
             </span>
           </footer>
         </main>
