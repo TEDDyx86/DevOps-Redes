@@ -1,0 +1,30 @@
+groups:
+  - name: http-laboratorio
+    rules:
+      - alert: HTTPIndisponivel
+        expr: probe_success{job="platform"} == 0
+        for: 15s
+        labels:
+          severity: critical
+          service: web-demo
+        annotations:
+          summary: Aplicação HTTP indisponível
+          description: A sonda HTTP falhou por pelo menos 15 segundos. Verifique o modo do laboratório e a resposta de /health.
+      - alert: HTTPLento
+        expr: (probe_duration_seconds{job="platform"} > 0.5) and (probe_success{job="platform"} == 1)
+        for: 30s
+        labels:
+          severity: warning
+          service: web-demo
+        annotations:
+          summary: Aplicação HTTP com resposta lenta
+          description: A sonda HTTP ultrapassou 500 ms por pelo menos 30 segundos.
+      - alert: ColetaIndisponivel
+        expr: up{job="platform"} == 0
+        for: 15s
+        labels:
+          severity: critical
+          service: monitoring
+        annotations:
+          summary: Coleta da plataforma interrompida
+          description: Prometheus não consegue coletar a sonda da plataforma. A disponibilidade do serviço está desconhecida.

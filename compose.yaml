@@ -1,0 +1,74 @@
+name: aularedes
+
+x-platform: &platform
+  image: aularedes-platform:local
+  build: .
+  restart: unless-stopped
+  networks: [monitoring]
+  security_opt: [no-new-privileges:true]
+
+services:
+  api:
+    <<: *platform
+    environment:
+      PROMETHEUS_URL: http://prometheus:9090
+      DEMO_URL: http://web-demo:8001
+      DATABASE_PATH: /data/incidents.sqlite
+      LAB_TOKEN: ${LAB_TOKEN:?Execute python scripts/configure.py}
+      WEBHOOK_TOKEN: ${WEBHOOK_TOKEN:?Execute python scripts/configure.py}
+    ports: ["127.0.0.1:8000:8000"]
+    volumes: ["incidents:/data"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  web-demo:
+    <<: *platform
+    command: ["uvicorn", "demo.main:app", "--host", "0.0.0.0", "--port", "8001"]
+    environment:
+      LAB_TOKEN: ${LAB_TOKEN:?Execute python scripts/configure.py}
+    ports: ["127.0.0.1:8001:8001"]
+
+  prometheus:
+    image: prom/prometheus:v3.15.1
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus", "--storage.tsdb.retention.time=7d"]
+    volumes:
+      - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - metrics:/prometheus
+    ports: ["127.0.0.1:9090:9090"]
+    networks: [monitoring]
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:v0.34.1
+    command: ["--config.file=/etc/alertmanager/alertmanager.yml", "--storage.path=/alertmanager"]
+    volumes:
+      - ./infra/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./.runtime/secrets:/etc/alertmanager/secrets:ro
+      - alerts:/alertmanager
+    ports: ["127.0.0.1:9093:9093"]
+    networks: [monitoring]
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:v1.32.0
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: 200
+    volumes: ["mail:/data"]
+    ports: ["127.0.0.1:8025:8025"]
+    networks: [monitoring]
+    restart: unless-stopped
+
+networks:
+  monitoring:
+    driver: bridge
+
+volumes:
+  incidents:
+  metrics:
+  alerts:
+  mail:
