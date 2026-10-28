@@ -24,6 +24,8 @@ from .dns_metrics import DNSMetrics
 from .dns_probe import DNSProbe, run_dns_workload
 from .smtp_metrics import SMTPMetrics
 from .smtp_probe import SMTPProbe, run_smtp_workload
+from .auth_store import AuthStore
+from .auth import install_auth
 
 
 class Alert(BaseModel):
@@ -49,6 +51,7 @@ def create_app(settings: Settings | None = None, transport=None):
     @asynccontextmanager
     async def lifespan(app):
         app.state.store = IncidentStore(settings.database_path)
+        app.state.auth = AuthStore(settings.database_path.with_name("security.sqlite"), settings.auth_username, settings.auth_password_hash)
         app.state.probe = Probe()
         app.state.postgres_probe = PostgresProbe()
         app.state.dns_probe = DNSProbe()
@@ -73,7 +76,8 @@ def create_app(settings: Settings | None = None, transport=None):
                     with suppress(asyncio.CancelledError):
                         await item
 
-    app = FastAPI(title="AulaRedes API", version="0.4.0", lifespan=lifespan)
+    app = FastAPI(title="AulaRedes API", version="0.5.0", lifespan=lifespan)
+    install_auth(app, settings)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "api", "testserver"])
 
     def require_lab(request: Request, x_lab_token: str = Header(default="")):
@@ -85,7 +89,7 @@ def create_app(settings: Settings | None = None, transport=None):
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "version": "0.4.0"}
+        return {"status": "ok", "version": "0.5.0"}
 
     @app.get("/metrics")
     def metrics(request: Request):
@@ -94,6 +98,7 @@ def create_app(settings: Settings | None = None, transport=None):
         content += generate_latest(request.app.state.postgres_probe.registry)
         content += generate_latest(request.app.state.dns_probe.registry)
         content += generate_latest(request.app.state.smtp_probe.registry)
+        content += generate_latest(request.app.state.auth.registry)
         return Response(content=content, media_type=CONTENT_TYPE_LATEST)
 
     @app.get("/api/smtp")

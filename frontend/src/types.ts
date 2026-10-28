@@ -7,6 +7,7 @@ export type Page =
   | "postgres"
   | "dns"
   | "smtp"
+  | "security"
   | "incidents"
   | "lab";
 

@@ -76,6 +76,16 @@ Há um aviso de depreciação da biblioteca Starlette sobre a integração de te
 - Navegação real confirmou quatro serviços operacionais na visão geral, abertura do detalhe pela linha SMTP e console sem erros. Evidências: `docs/evidencias/smtp-desktop.jpg` e `smtp-mobile.jpg`.
 - Resultado temporário sem credenciais: `tmp/smtp-e2e-result.json`. O roteiro restaura os serviços e não envia correio externo.
 
+## Etapa de autenticação: 28/10/2026
+
+- **42 testes backend passaram**, incluindo os 33 anteriores, proteção de APIs/docs, hash e bootstrap idempotente, sessão persistente, expiração, revogação por logout/rotação, CSRF/origem, falhas por IP/conta, concorrência, cap do histórico e Uvicorn real ignorando `X-Forwarded-For`.
+- **8 testes frontend passaram**, incluindo CSRF e distinção entre sessão expirada e token de laboratório inválido. Build TypeScript/Vite concluído. `promtool` validou **15 regras**.
+- **19 verificações reais passaram** com `scripts/verify_auth.py`: dados anônimos negados, health/métricas disponíveis, sessão real, proteção CSRF/origem, reinício da API preservando sessão, cinco falhas e sexta tentativa 429/Retry-After, eventos sem segredos, sessão anterior operante, incidente/e-mail de autenticação, expiração da janela, resolução/e-mail, logout revogado e novo login.
+- **12 verificações HTTP passaram novamente** com login e CSRF em `scripts/verify_lab.py`, incluindo controle de lentidão/falha, métricas, incidentes, alertas SMTP e recuperação. Os quatro serviços permaneceram recuperáveis e voltaram ao estado operacional.
+- Revisão independente motivou três correções: desabilitar proxy headers no servidor nativo/container; separar orçamento do limitador do histórico de 10.000 eventos; repassar cookie Secure pelo Compose. Testes cobrem IP informado pelo cliente e histórico cheio sem perder orçamento/counters.
+- Navegação real confirmou formulário de entrada, login, aba Segurança, eventos persistidos, logout e nova entrada, além de sessão preservada após recarga. Login e eventos foram conferidos em 390×844 e 1440×1000, com largura de página igual à largura útil da viewport (375 e 1425 px), sem transbordamento horizontal.
+- Evidências: `docs/evidencias/login-desktop.jpg`, `login-mobile.jpg`, `security-desktop.jpg` e `security-mobile.jpg`. Relatório sem segredos: `tmp/auth-e2e-result.json`.
+
 ## Requisitos ainda em construção
 
-CPU/memória/I/O, pools e consultas lentas, detecção de anomalias e força bruta, monitoramento de arquivos, vulnerabilidades conhecidas, autenticação da interface e relatório ABNT. As etapas atuais entregam HTTP, PostgreSQL, DNS e SMTP com infraestrutura de alertas.
+CPU/memória/I/O, pools e consultas lentas, detecção de anomalias de tráfego e tentativas de autenticação nos serviços monitorados, monitoramento de arquivos, vulnerabilidades conhecidas e relatório ABNT. A autenticação da interface e a detecção de falhas repetidas no painel já estão implementadas.

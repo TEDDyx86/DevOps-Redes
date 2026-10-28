@@ -4,7 +4,7 @@ Plataforma de monitoramento para o trabalho final de Redes de Computadores e Int
 
 ## Estado da construção
 
-**Etapa 4: HTTP + PostgreSQL + DNS + SMTP.** Quatro serviços reais, sondas independentes, séries no Prometheus, dashboards React, incidentes persistidos e e-mails locais pelo Alertmanager/Mailpit. SMTP inclui fila persistente e entrega local. Segurança é a próxima etapa.
+**Etapa 5: acesso protegido e eventos de autenticação.** HTTP, PostgreSQL, DNS e SMTP monitorados, com sessões de administrador, histórico de acesso, bloqueio temporário e alerta de tentativas repetidas. As demais categorias de segurança permanecem em construção.
 
 ## Iniciar no Windows
 
@@ -29,6 +29,9 @@ Ou execute `./scripts/start.ps1` no PowerShell. Se a política do computador imp
 - Dashboard PostgreSQL: http://localhost:8000/#postgres
 - Dashboard DNS: http://localhost:8000/#dns
 - Dashboard SMTP: http://localhost:8000/#smtp
+- Eventos de autenticação: http://localhost:8000/#security
+
+O painel exige login. No primeiro acesso, use `ADMIN_USERNAME` e `ADMIN_PASSWORD` do arquivo local `.env`, gerados por `scripts/configure.py`. Ao atualizar uma instalação existente, execute novamente esse script antes de reconstruir a stack. Ele preserva os segredos anteriores. O botão de sair revoga a sessão; o [runbook de autenticação](docs/runbook-autenticacao.md) detalha limites e demonstração.
 
 O SMTP de laboratório usa Python/aiosmtpd e uma fila SQLite em volume separado. Aceita mensagens somente para `aluno@aularedes.test`, mede aceitação e entrega separadamente e tenta novamente quando o receptor cai. O canal de alertas usa outro Mailpit, portanto continua funcionando durante uma falha no SMTP monitorado. Detalhes e limites em [runbook SMTP](docs/runbook-smtp.md).
 
@@ -71,7 +74,7 @@ cd frontend
 npm ci
 ```
 
-O frontend usa Vite (`npm run dev`) e encaminha `/api` para `127.0.0.1:8000`. A API pode ser iniciada por `.venv/Scripts/python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000` na raiz. Ela requer Prometheus, o serviço de demonstração e as variáveis descritas em `backend/app/config.py`; o arquivo `.env` é carregado pelo Compose, não automaticamente pelo Python. Essa opção não inicia o laboratório completo.
+O frontend usa Vite (`npm run dev`) e encaminha `/api` para `127.0.0.1:8000`. A API pode ser iniciada por `.venv/Scripts/python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --no-proxy-headers` na raiz. Ela requer Prometheus, o serviço de demonstração e as variáveis descritas em `backend/app/config.py`; o arquivo `.env` é carregado pelo Compose, não automaticamente pelo Python. Essa opção não inicia o laboratório completo.
 
 ## Verificações
 
@@ -121,14 +124,23 @@ Para verificar SMTP, fila persistente, entrega e alertas em canal independente:
 
 O roteiro para e recupera o receptor e o servidor SMTP, restaurando ambos ao final.
 
+Para verificar autenticação, bloqueio temporário, incidente e recuperação:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/verify_auth.py
+```
+
+O roteiro reinicia a API, confirma a sessão persistente e provoca cinco falhas locais. Aguarda a janela de bloqueio expirar, verifica e-mails e conclui com os quatro serviços operacionais.
+
 - [Arquitetura e métricas](docs/arquitetura.md)
 - [Runbook HTTP e playbook de incidentes](docs/runbook-http.md)
 - [Runbook PostgreSQL](docs/runbook-postgres.md)
 - [Runbook DNS](docs/runbook-dns.md)
 - [Runbook SMTP](docs/runbook-smtp.md)
+- [Runbook de autenticação](docs/runbook-autenticacao.md)
 - [Roadmap dos 20 dias](docs/roadmap.md)
 - [Validação e limites](docs/validacao.md)
 
 ## Limites de uso desta etapa
 
-Ambiente acadêmico local. As portas do host são vinculadas a `127.0.0.1`. Não exponha a plataforma à internet: ainda não existe autenticação de usuários no dashboard. Operações do laboratório exigem token e rejeitam origem diferente; o webhook tem segredo próprio. Os dados do laboratório são de teste. A entrega SMTP é confirmada apenas no receptor local, sem comprovar entrega em provedores externos. Há duas caixas Mailpit separadas: alertas em 8025 e mensagens do serviço monitorado em 8026.
+Ambiente acadêmico local. As portas do host são vinculadas a `127.0.0.1`. Não exponha a plataforma à internet: o login protege o dashboard, mas as ferramentas auxiliares continuam sendo interfaces locais de laboratório. Operações do laboratório exigem token e rejeitam origem diferente; o webhook tem segredo próprio. Os dados do laboratório são de teste. A entrega SMTP é confirmada apenas no receptor local, sem comprovar entrega em provedores externos. Há duas caixas Mailpit separadas: alertas em 8025 e mensagens do serviço monitorado em 8026.

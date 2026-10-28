@@ -1,6 +1,10 @@
 """Create local secrets without overwriting an existing environment."""
 import secrets
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from backend.app.passwords import hash_password, verify_password
 
 
 def configure(root: Path):
@@ -12,7 +16,10 @@ def configure(root: Path):
                 key, value = line.split("=", 1)
                 values[key.strip()] = value.strip()
     additions = []
-    for key in ["LAB_TOKEN", "WEBHOOK_TOKEN", "POSTGRES_ADMIN_PASSWORD", "POSTGRES_MONITOR_PASSWORD", "POSTGRES_WORKLOAD_PASSWORD"]:
+    if not values.get("ADMIN_USERNAME"):
+        values["ADMIN_USERNAME"] = "admin"
+        additions.append("ADMIN_USERNAME=admin")
+    for key in ["LAB_TOKEN", "WEBHOOK_TOKEN", "POSTGRES_ADMIN_PASSWORD", "POSTGRES_MONITOR_PASSWORD", "POSTGRES_WORKLOAD_PASSWORD", "ADMIN_PASSWORD"]:
         if not values.get(key):
             values[key] = secrets.token_hex(24)
             additions.append(f"{key}={values[key]}")
@@ -22,6 +29,10 @@ def configure(root: Path):
     secret_dir = root / ".runtime" / "secrets"
     secret_dir.mkdir(parents=True, exist_ok=True)
     (secret_dir / "webhook-token").write_text(values["WEBHOOK_TOKEN"], encoding="utf-8")
+    hash_path = secret_dir / "admin-password-hash"
+    existing = hash_path.read_text(encoding="utf-8").strip() if hash_path.exists() else ""
+    if not verify_password(values["ADMIN_PASSWORD"], existing):
+        hash_path.write_text(hash_password(values["ADMIN_PASSWORD"]), encoding="utf-8")
     print("Ambiente local configurado. Tokens preservados em .env (ignorado pelo Git).")
 
 

@@ -21,9 +21,14 @@ class Settings:
     dns_expected: str = "192.0.2.10"
     smtp_host: str = ""
     smtp_port: int = 2525
+    auth_username: str = "admin"
+    auth_password_hash: str = ""
+    auth_cookie_secure: bool = False
 
     @classmethod
     def from_env(cls):
+        hash_path = os.getenv("AUTH_PASSWORD_HASH_FILE", "")
+        password_hash = Path(hash_path).read_text(encoding="utf-8").strip() if hash_path and Path(hash_path).is_file() else ""
         return cls(
             prometheus_url=os.getenv("PROMETHEUS_URL", "http://127.0.0.1:9090"),
             demo_url=os.getenv("DEMO_URL", "http://127.0.0.1:8001"),
@@ -38,4 +43,7 @@ class Settings:
             dns_port=int(os.getenv("DNS_PORT", "1053")),
             smtp_host=os.getenv("SMTP_HOST", ""),
             smtp_port=int(os.getenv("SMTP_PORT", "2525")),
+            auth_username=os.getenv("ADMIN_USERNAME", "admin"),
+            auth_password_hash=password_hash,
+            auth_cookie_secure=os.getenv("AUTH_COOKIE_SECURE", "false").lower() == "true",
         )

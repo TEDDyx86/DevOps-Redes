@@ -3,10 +3,10 @@ import time
 
 import httpx
 import pytest
-from fastapi.testclient import TestClient
+from backend.tests.auth_helpers import AuthenticatedClient as TestClient
 
 from backend.app.config import Settings
-from backend.app.main import create_app
+from backend.tests.auth_helpers import authenticated_app as create_app
 
 
 def response(values=None, stale=False):

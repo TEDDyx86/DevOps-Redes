@@ -22,8 +22,13 @@ services:
       DNS_PORT: 1053
       SMTP_HOST: smtp
       SMTP_PORT: 2525
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      AUTH_PASSWORD_HASH_FILE: /etc/aularedes/secrets/admin-password-hash
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
     ports: ["127.0.0.1:8000:8000"]
-    volumes: ["incidents:/data"]
+    volumes:
+      - incidents:/data
+      - ./.runtime/secrets/admin-password-hash:/etc/aularedes/secrets/admin-password-hash:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
       interval: 5s
@@ -109,7 +114,7 @@ services:
     command: ["--config.file=/etc/alertmanager/alertmanager.yml", "--storage.path=/alertmanager"]
     volumes:
       - ./infra/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-      - ./.runtime/secrets:/etc/alertmanager/secrets:ro
+      - ./.runtime/secrets/webhook-token:/etc/alertmanager/secrets/webhook-token:ro
       - alerts:/alertmanager
     ports: ["127.0.0.1:9093:9093"]
     networks: [monitoring]

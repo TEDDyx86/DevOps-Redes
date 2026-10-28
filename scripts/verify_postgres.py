@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
+from lab_session import authenticate
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,6 +25,7 @@ def main():
     checks = []
     started = datetime.now(timezone.utc)
     with httpx.Client(timeout=8, trust_env=False) as client:
+        authenticate(client)
         def get(path):
             response = client.get("http://localhost:8000" + path)
             response.raise_for_status()

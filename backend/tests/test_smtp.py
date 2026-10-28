@@ -146,9 +146,9 @@ def test_queue_capacity_and_metrics(tmp_path):
 
 def test_smtp_route_missing_failed_and_exporter_independent(tmp_path):
     import httpx
-    from fastapi.testclient import TestClient
+    from backend.tests.auth_helpers import AuthenticatedClient as TestClient
     from backend.app.config import Settings
-    from backend.app.main import create_app
+    from backend.tests.auth_helpers import authenticated_app as create_app
 
     values = {}
     skew = .1

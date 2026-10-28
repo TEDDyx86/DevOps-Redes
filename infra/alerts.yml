@@ -1,4 +1,15 @@
 groups:
+  - name: autenticacao-laboratorio
+    rules:
+      - alert: AutenticacaoSuspeita
+        expr: (max(security_auth_failures_recent{job="platform",scope="ip"}) >= 5) or (max(security_auth_failures_recent{job="platform",scope="account"}) >= 10)
+        for: 10s
+        labels:
+          severity: warning
+          service: platform
+        annotations:
+          summary: Tentativas repetidas de acesso ao painel
+          description: O limite de falhas de autenticação foi atingido na janela de 60 segundos. Novos logins recebem bloqueio temporário; confira os eventos na aba Segurança.
   - name: smtp-laboratorio
     rules:
       - alert: SMTPIndisponivel

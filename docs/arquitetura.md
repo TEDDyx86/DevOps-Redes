@@ -17,6 +17,14 @@ flowchart LR
 
 O frontend compilado é servido pelo FastAPI, no mesmo host e porta. Apenas o backend acessa Prometheus a partir da interface. Consultas PromQL são fixas no código, sem entrada livre do navegador. O backend executa sondas HTTP, PostgreSQL, DNS e SMTP e seus geradores em tarefas independentes.
 
+## Autenticação do painel
+
+Login e sessões usam `security.sqlite` no volume de incidentes, independente dos quatro serviços monitorados. A configuração local gera uma senha e conserva seu hash scrypt em arquivo montado somente na API. Identificadores de sessão são aleatórios; SQLite guarda seu SHA-256, expiração e versão das credenciais. Cookie HttpOnly/SameSite e CSRF por sessão protegem o acesso e as mutações.
+
+Middleware exige sessão nos dados e controles; health, métricas e webhook possuem acesso próprio. Uvicorn da API ignora proxy headers. O limitador reserva tentativas atomicamente em orçamento de 60 s separado do histórico: cinco falhas por IP ou dez por conta impedem novos logins até a janela liberar. O histórico é limitado a 10.000 eventos/7 dias; contadores persistentes e agregação dos bloqueios por segundo sobrevivem à limpeza.
+
+Prometheus coleta `security_auth_attempts_total`, `security_auth_failures_recent` e `security_auth_blocked_recent` sem rótulos de identidade. O alerta `AutenticacaoSuspeita` confirma o limiar por 10 s e usa o mesmo canal de incidentes/e-mails. A interface Segurança lê eventos autenticados da API. Os demais detectores de segurança ainda não estão implementados.
+
 ## Fluxo SMTP
 
 `smtp:2525` é um servidor aiosmtpd com fila SQLite em volume `smtp-data`. DATA recebe confirmação somente após persistência. Um worker encaminha via smtplib para `smtp-inbox:1025`, com retry de falhas temporárias após 5 s. O receptor possui caixa web localhost:8026 e volume `smtp-mail`; o Mailpit original em 8025 permanece exclusivo para alertas.

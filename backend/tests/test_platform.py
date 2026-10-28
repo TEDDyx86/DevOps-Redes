@@ -3,10 +3,11 @@ from pathlib import Path
 
 import httpx
 import pytest
-from fastapi.testclient import TestClient
+from backend.tests.auth_helpers import AuthenticatedClient as TestClient
+from fastapi.testclient import TestClient as PublicClient
 
 from backend.app.config import Settings
-from backend.app.main import create_app
+from backend.tests.auth_helpers import authenticated_app as create_app
 from backend.app.metrics import classify, scalar
 from backend.app.storage import IncidentStore
 
@@ -113,7 +114,7 @@ def test_overview_uses_probe_age_and_real_series(tmp_path):
 def test_demo_failure_preserves_metrics_endpoint():
     from demo.main import create_demo
 
-    with TestClient(create_demo("demo-secret")) as client:
+    with PublicClient(create_demo("demo-secret")) as client:
         assert client.get("/health").status_code == 200
         assert client.post("/mode", json={"mode": "offline"}).status_code == 401
         assert client.post("/mode", headers={"X-Lab-Token": "demo-secret"}, json={"mode": "offline"}).status_code == 200

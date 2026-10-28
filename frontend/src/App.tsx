@@ -9,6 +9,7 @@ import {
   FlaskConical,
   Globe2,
   LayoutDashboard,
+  LogOut,
   Mail,
   Network,
   Radio,
@@ -32,6 +33,7 @@ import LabView from "./Lab";
 import PostgresView from "./Postgres";
 import DNSView from "./DNS";
 import SMTPView from "./SMTP";
+import SecurityView from "./Security";
 import {
   combinedStatus,
   currentService,
@@ -57,6 +59,7 @@ const navigation: { id: Page; label: string; icon: typeof Activity }[] = [
   { id: "postgres", label: "PostgreSQL", icon: Database },
   { id: "dns", label: "DNS", icon: Globe2 },
   { id: "smtp", label: "SMTP", icon: Mail },
+  { id: "security", label: "Segurança", icon: ShieldCheck },
   { id: "incidents", label: "Incidentes", icon: Bell },
   { id: "lab", label: "Laboratório", icon: FlaskConical },
 ];
@@ -85,6 +88,11 @@ const pageTitles: Record<Page, { title: string; subtitle: string }> = {
     title: "SMTP",
     subtitle: "Da aceitação à entrega: volume, fila e falhas do correio local.",
   },
+  security: {
+    title: "Segurança",
+    subtitle:
+      "Acessos ao painel, tentativas bloqueadas e eventos de autenticação.",
+  },
   lab: {
     title: "Laboratório",
     subtitle: "Provoque uma falha. Entenda o sinal. Acompanhe a recuperação.",
@@ -98,7 +106,17 @@ function initialPage(): Page {
     : "overview";
 }
 
-export default function App() {
+export default function App({
+  username,
+  onLogout,
+  logoutBusy,
+  authError,
+}: {
+  username: string;
+  onLogout: () => void;
+  logoutBusy: boolean;
+  authError: string | null;
+}) {
   const [page, setPage] = useState<Page>(initialPage);
   const [window, setWindow] = useState<Window>("15m");
   const [data, setData] = useState<Overview | null>(null);
@@ -381,16 +399,9 @@ export default function App() {
             </a>
           ))}
         </nav>
-        <div className="nav-caption integrations-caption">
-          PRÓXIMAS INTEGRAÇÕES
-        </div>
-        <div className="planned-nav">
-          <ShieldCheck size={16} />
-          Segurança<span>Planejado</span>
-        </div>
         <div className="sidebar-bottom">
           <div className="version-pill">
-            ETAPA 04 <span>HTTP · SQL · DNS · SMTP</span>
+            ETAPA 05 <span>ACESSO PROTEGIDO</span>
           </div>
           <p>
             Da requisição ao alerta.
@@ -427,10 +438,23 @@ export default function App() {
             >
               <Mail size={18} />
             </a>
-            <span className="avatar">AR</span>
+            <button
+              className="icon-button"
+              onClick={onLogout}
+              disabled={logoutBusy}
+              aria-label={`Sair da conta ${username}`}
+              title={`Sair da conta ${username}`}
+            >
+              <LogOut size={18} />
+            </button>
           </div>
         </header>
         <main id="main">
+          {authError && (
+            <div className="notice error" role="alert">
+              {authError}
+            </div>
+          )}
           <div className="page-heading">
             <div>
               <span className="eyebrow">LABORATÓRIO DE REDES</span>
@@ -438,19 +462,23 @@ export default function App() {
               <p>{title.subtitle}</p>
             </div>
             <div className="heading-actions">
-              <label className="window-select">
-                <SlidersHorizontal size={15} />
-                <span className="sr-only">Período dos gráficos</span>
-                <select
-                  value={window}
-                  onChange={(event) => setWindow(event.target.value as Window)}
-                >
-                  <option value="15m">Últimos 15 minutos</option>
-                  <option value="1h">Última hora</option>
-                  <option value="6h">Últimas 6 horas</option>
-                  <option value="24h">Últimas 24 horas</option>
-                </select>
-              </label>
+              {page !== "security" && (
+                <label className="window-select">
+                  <SlidersHorizontal size={15} />
+                  <span className="sr-only">Período dos gráficos</span>
+                  <select
+                    value={window}
+                    onChange={(event) =>
+                      setWindow(event.target.value as Window)
+                    }
+                  >
+                    <option value="15m">Últimos 15 minutos</option>
+                    <option value="1h">Última hora</option>
+                    <option value="6h">Últimas 6 horas</option>
+                    <option value="24h">Últimas 24 horas</option>
+                  </select>
+                </label>
+              )}
               <button
                 className="icon-button refresh-button"
                 onClick={() => setRefresh((value) => value + 1)}
@@ -485,7 +513,9 @@ export default function App() {
               estar desatualizado.
             </div>
           )}
-          {page === "smtp" ? (
+          {page === "security" ? (
+            <SecurityView incidents={incidents} refresh={refresh} />
+          ) : page === "smtp" ? (
             <SMTPView
               data={smtpDisplay}
               error={smtpError}
@@ -720,7 +750,7 @@ export default function App() {
             </span>
             <span>
               AulaRedes <b>/</b> HTTP · SQL · DNS · SMTP{" "}
-              <span className="version">v0.4</span>
+              <span className="version">v0.5</span>
             </span>
           </footer>
         </main>
