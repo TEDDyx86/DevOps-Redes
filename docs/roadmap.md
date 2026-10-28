@@ -12,7 +12,7 @@ Data inicial: 28/10/2026. Entrega considerada: 17/11/2026. A implementação pod
 
 ## Próximas tarefas
 
-1. PostgreSQL monitorado separado do banco da plataforma. Coletar conexões, transações, rollbacks, tamanho e, com instrumentação específica, consultas/s e consultas lentas.
+1. PostgreSQL integrado em volume separado: disponibilidade, conexão + SELECT 1, conexões, commits/s, rollbacks/s, tamanho e comandos SQL/s do usuário de laboratório. CPU/memória/disco, pools e consultas lentas exigem instrumentação complementar. O armazenamento de incidentes permanece independente em SQLite.
 2. CoreDNS: domínio local de teste, sonda de resolução, consultas/s, latência e códigos de erro.
 3. Postfix: fila e eventos de entrega/falha. Separar aceitação SMTP de recebimento efetivo. Canal de alertas independente.
 4. Segurança: login da plataforma, contagem de falhas por conta/IP com janela e limiar; comparação de tráfego com referência; hashes de configuração; resultados periódicos de scanner associados às imagens/serviços.

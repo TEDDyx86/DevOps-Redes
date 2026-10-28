@@ -39,6 +39,18 @@ O script integrado altera somente o serviço de demonstração e restaura o modo
 
 Há um aviso de depreciação da biblioteca Starlette sobre a integração de testes com httpx. Os testes passam; o aviso pertence à dependência e não indica falha funcional da aplicação.
 
+## Etapa PostgreSQL: 28/10/2026
+
+- **18 testes de API passaram**, incluindo os testes HTTP anteriores, contratos SQL, dados ausentes/antigos, falha com estatísticas antigas, distinção QPS/transações, pressão de conexões e duas regressões de recuperação.
+- **4 testes de frontend passaram**: formatação, timeout, combinação de estados e expiração independente dos serviços.
+- Build TypeScript/Vite concluído; `promtool` validou **7 regras** HTTP/SQL.
+- **14 verificações reais passaram** com `scripts/verify_postgres.py`: estatísticas, carga SQL, rollbacks, bloqueio de escrita do monitor, parada real, ocultação de valores antigos, independência do HTTP, persistência de incidente/e-mail, reconexão, retorno das taxas, dados preservados e resolução/e-mail de recuperação.
+- O banco permaneceu separado do armazenamento de incidentes. As 1.000 linhas e as atualizações confirmadas foram preservadas após stop/start.
+- Revisão independente encontrou duas falhas corrigidas com reprodução antes da correção: NaN comum em counters ausentes atrasava `rate`, e prazo global de coleta confundia estatísticas lentas com falha SQL. Counters ausentes agora são omitidos; conexão/SELECT 1 e estatísticas têm prazos separados.
+- Navegação real confirmou o estado consolidado crítico com HTTP operacional e PostgreSQL parado, a recuperação, o detalhe SQL e o seletor de período de uma hora.
+- Layout SQL verificado em 390×844 e 1440×1000: largura do documento igual à largura útil da viewport, sem transbordamento. Console do navegador sem erros na conferência final.
+- Evidências: `docs/evidencias/postgres-desktop.jpg`, `postgres-mobile.jpg` e `postgres-indisponivel.jpg`. Resultado temporário sem credenciais: `tmp/postgres-e2e-result.json`.
+
 ## Requisitos ainda em construção
 
-Banco, DNS, SMTP monitorado, CPU/memória/I/O, detecção de anomalias e força bruta, monitoramento de arquivos, vulnerabilidades conhecidas, autenticação da interface e relatório ABNT. A etapa atual entrega a base HTTP e a infraestrutura de alertas.
+DNS, SMTP monitorado, CPU/memória/I/O, pools e consultas lentas, detecção de anomalias e força bruta, monitoramento de arquivos, vulnerabilidades conhecidas, autenticação da interface e relatório ABNT. As etapas atuais entregam HTTP e PostgreSQL com infraestrutura de alertas.

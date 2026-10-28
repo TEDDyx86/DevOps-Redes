@@ -16,6 +16,8 @@ services:
       DATABASE_PATH: /data/incidents.sqlite
       LAB_TOKEN: ${LAB_TOKEN:?Execute python scripts/configure.py}
       WEBHOOK_TOKEN: ${WEBHOOK_TOKEN:?Execute python scripts/configure.py}
+      POSTGRES_MONITOR_DSN: postgresql://lab_monitor:${POSTGRES_MONITOR_PASSWORD:?Execute python scripts/configure.py}@postgres:5432/lab_network
+      POSTGRES_WORKLOAD_DSN: postgresql://lab_workload:${POSTGRES_WORKLOAD_PASSWORD:?Execute python scripts/configure.py}@postgres:5432/lab_network
     ports: ["127.0.0.1:8000:8000"]
     volumes: ["incidents:/data"]
     healthcheck:
@@ -30,6 +32,27 @@ services:
     environment:
       LAB_TOKEN: ${LAB_TOKEN:?Execute python scripts/configure.py}
     ports: ["127.0.0.1:8001:8001"]
+
+  postgres:
+    image: postgres:17.11-alpine
+    command: ["postgres", "-c", "shared_preload_libraries=pg_stat_statements", "-c", "max_connections=100"]
+    environment:
+      POSTGRES_USER: lab_admin
+      POSTGRES_DB: lab_network
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Execute python scripts/configure.py}
+      POSTGRES_MONITOR_PASSWORD: ${POSTGRES_MONITOR_PASSWORD:?Execute python scripts/configure.py}
+      POSTGRES_WORKLOAD_PASSWORD: ${POSTGRES_WORKLOAD_PASSWORD:?Execute python scripts/configure.py}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres-init.sql:/docker-entrypoint-initdb.d/10-lab.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lab_admin -d lab_network"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    networks: [monitoring]
+    restart: unless-stopped
+    security_opt: [no-new-privileges:true]
 
   prometheus:
     image: prom/prometheus:v3.15.1
@@ -72,3 +95,4 @@ volumes:
   metrics:
   alerts:
   mail:
+  postgres-data:

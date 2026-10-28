@@ -5,6 +5,7 @@ import {
   CircleHelp,
   CircleX,
   Clock3,
+  Database,
   TriangleAlert,
 } from "lucide-react";
 import {
@@ -17,7 +18,7 @@ import {
   YAxis,
 } from "recharts";
 import { formatMetric } from "./api";
-import type { Incident, Overview, Status } from "./types";
+import type { ChartSample, Incident, ServiceSummary, Status } from "./types";
 
 export const statusText: Record<Status, string> = {
   ok: "Operacional",
@@ -69,13 +70,15 @@ export function SignalChart({
   subtitle,
   unit,
 }: {
-  data: Overview["series"];
-  metric: "rps" | "latency_ms";
+  data: ChartSample[];
+  metric: "rps" | "qps" | "latency_ms";
   title: string;
   subtitle: string;
   unit: string;
 }) {
-  const hasData = data.some((row) => row[metric] !== null);
+  const hasData = data.some(
+    (row) => row[metric] != null && Number.isFinite(row[metric]),
+  );
   return (
     <section className="chart-panel">
       <div className="panel-heading">
@@ -92,7 +95,7 @@ export function SignalChart({
         <div
           className="chart"
           role="img"
-          aria-label={`${title}. ${data.filter((row) => row[metric] !== null).length} amostras no período selecionado.`}
+          aria-label={`${title}. ${data.filter((row) => row[metric] != null).length} amostras no período selecionado.`}
         >
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
@@ -138,7 +141,7 @@ export function SignalChart({
               <Line
                 type="linear"
                 dataKey={metric}
-                stroke={metric === "rps" ? "#7557d3" : "#328c94"}
+                stroke={metric !== "latency_ms" ? "#7557d3" : "#328c94"}
                 strokeWidth={2.4}
                 dot={false}
                 activeDot={{ r: 4 }}
@@ -221,13 +224,12 @@ export function IncidentsList({
 }
 
 export function ServiceTable({
-  data,
+  services,
   onSelect,
 }: {
-  data: Overview | null;
-  onSelect: () => void;
+  services: ServiceSummary[];
+  onSelect: (id: string) => void;
 }) {
-  const service = data?.service;
   return (
     <div className="table-scroll">
       <table className="service-table">
@@ -244,42 +246,49 @@ export function ServiceTable({
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>
-              <button className="service-link" onClick={onSelect}>
-                <span className="service-icon">
-                  <Activity size={18} />
-                </span>
-                <span>
-                  <strong>Aplicação HTTP</strong>
-                  <small>web-demo:8001</small>
-                </span>
-              </button>
-            </td>
-            <td>
-              <StatusBadge status={service?.status ?? "unknown"} />
-            </td>
-            <td className="numeric">
-              {formatMetric(service?.availability_percent)}
-              <span className="unit"> %</span>
-            </td>
-            <td className="numeric">
-              {formatMetric(service?.latency_ms, 0)}
-              <span className="unit"> ms</span>
-            </td>
-            <td className="muted numeric">
-              {timeLabel(service?.checked_at ?? null)}
-            </td>
-            <td>
-              <button
-                className="icon-button"
-                onClick={onSelect}
-                aria-label="Ver detalhes da aplicação HTTP"
-              >
-                <ArrowUpRight size={18} />
-              </button>
-            </td>
-          </tr>
+          {services.map((service) => (
+            <tr key={service.id}>
+              <td>
+                <button
+                  className="service-link"
+                  onClick={() => onSelect(service.id)}
+                >
+                  <span className="service-icon">
+                    {service.id === "postgres" ? (
+                      <Database size={18} />
+                    ) : (
+                      <Activity size={18} />
+                    )}
+                  </span>
+                  <span>
+                    <strong>{service.name}</strong>
+                    <small>{service.target}</small>
+                  </span>
+                </button>
+              </td>
+              <td>
+                <StatusBadge status={service.status} />
+              </td>
+              <td className="numeric">
+                {formatMetric(service.availability_percent)}
+                <span className="unit"> %</span>
+              </td>
+              <td className="numeric">
+                {formatMetric(service.latency_ms, 0)}
+                <span className="unit"> ms</span>
+              </td>
+              <td className="muted numeric">{timeLabel(service.checked_at)}</td>
+              <td>
+                <button
+                  className="icon-button"
+                  onClick={() => onSelect(service.id)}
+                  aria-label={`Ver detalhes de ${service.name}`}
+                >
+                  <ArrowUpRight size={18} />
+                </button>
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>

@@ -29,11 +29,21 @@ import {
   timeLabel,
 } from "./components";
 import LabView from "./Lab";
-import type { Incident, Lab, Overview, Page, Window } from "./types";
+import PostgresView from "./Postgres";
+import { combinedStatus, currentService, emptyPostgres } from "./serviceState";
+import type {
+  Incident,
+  Lab,
+  Overview,
+  Page,
+  PostgresOverview,
+  Window,
+} from "./types";
 
 const navigation: { id: Page; label: string; icon: typeof Activity }[] = [
   { id: "overview", label: "Visão geral", icon: LayoutDashboard },
   { id: "service", label: "Serviço HTTP", icon: Server },
+  { id: "postgres", label: "PostgreSQL", icon: Database },
   { id: "incidents", label: "Incidentes", icon: Bell },
   { id: "lab", label: "Laboratório", icon: FlaskConical },
 ];
@@ -45,6 +55,10 @@ const pageTitles: Record<Page, { title: string; subtitle: string }> = {
   service: {
     title: "Aplicação HTTP",
     subtitle: "Disponibilidade, tráfego e tempo de resposta do serviço.",
+  },
+  postgres: {
+    title: "PostgreSQL",
+    subtitle: "Consultas, conexões e transações do banco monitorado.",
   },
   incidents: {
     title: "Incidentes",
@@ -68,6 +82,8 @@ export default function App() {
   const [window, setWindow] = useState<Window>("15m");
   const [data, setData] = useState<Overview | null>(null);
   const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [postgres, setPostgres] = useState<PostgresOverview | null>(null);
+  const [postgresError, setPostgresError] = useState<string | null>(null);
   const [lab, setLab] = useState<Lab | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [incidentError, setIncidentError] = useState(false);
@@ -91,6 +107,7 @@ export default function App() {
     let running = false;
     setLoading(true);
     setData(null);
+    setPostgres(null);
     async function load() {
       if (running) return;
       running = true;
@@ -102,9 +119,23 @@ export default function App() {
           signal: controller.signal,
         }),
         request<Lab>("/api/lab", { signal: controller.signal }),
+        request<PostgresOverview>(`/api/postgres?window=${window}`, {
+          signal: controller.signal,
+        }),
       ]);
       if (controller.signal.aborted) return;
-      const [overview, history, laboratory] = results;
+      const [overview, history, laboratory, database] = results;
+      if (database.status === "fulfilled") {
+        setPostgres(database.value);
+        setPostgresError(null);
+      } else {
+        setPostgres(null);
+        setPostgresError(
+          database.reason instanceof Error
+            ? database.reason.message
+            : "Sem conexão com as métricas PostgreSQL.",
+        );
+      }
       if (overview.status === "fulfilled") {
         setData(overview.value);
         setError(null);
@@ -148,7 +179,47 @@ export default function App() {
       now - data.service.checked_at > 20);
   const displayData = data && !stale ? data : null;
   const service = displayData?.service;
-  const healthy = service?.status === "ok";
+  const pgCurrent = postgres
+    ? currentService(postgres.service, postgres.generated_at, now)
+    : emptyPostgres;
+  const pgStale =
+    !!postgres &&
+    (now - postgres.generated_at > 20 ||
+      postgres.service.checked_at == null ||
+      now - postgres.service.checked_at > 20);
+  const pgDisplay = postgres
+    ? {
+        ...postgres,
+        service: pgCurrent,
+        stats: pgStale
+          ? {
+              ...postgres.stats,
+              available: false,
+              connections: null,
+              connection_limit: null,
+              database_bytes: null,
+              commits_per_second: null,
+              rollbacks_per_second: null,
+              qps: null,
+            }
+          : postgres.stats,
+      }
+    : null;
+  const httpCurrent = service ?? {
+    id: "web-demo",
+    name: "Aplicação HTTP",
+    protocol: "HTTP",
+    target: "web-demo:8001",
+    status: "unknown" as const,
+    checked_at: null,
+    latency_ms: null,
+    availability_percent: null,
+  };
+  const healthStatus =
+    page === "overview"
+      ? combinedStatus([httpCurrent.status, pgCurrent.status])
+      : httpCurrent.status;
+  const healthy = healthStatus === "ok";
   const title = pageTitles[page];
 
   return (
@@ -195,10 +266,6 @@ export default function App() {
           PRÓXIMAS INTEGRAÇÕES
         </div>
         <div className="planned-nav">
-          <Database size={16} />
-          PostgreSQL<span>Planejado</span>
-        </div>
-        <div className="planned-nav">
           <Globe2 size={16} />
           DNS<span>Planejado</span>
         </div>
@@ -212,7 +279,7 @@ export default function App() {
         </div>
         <div className="sidebar-bottom">
           <div className="version-pill">
-            ETAPA 01 <span>HTTP</span>
+            ETAPA 02 <span>HTTP + SQL</span>
           </div>
           <p>
             Da requisição ao alerta.
@@ -307,7 +374,13 @@ export default function App() {
               estar desatualizado.
             </div>
           )}
-          {page === "lab" ? (
+          {page === "postgres" ? (
+            <PostgresView
+              data={pgDisplay}
+              incidents={incidents}
+              error={postgresError}
+            />
+          ) : page === "lab" ? (
             <LabView
               state={lab}
               onChanged={() => setRefresh((value) => value + 1)}
@@ -328,7 +401,7 @@ export default function App() {
           ) : (
             <>
               <section
-                className={`health-strip ${service?.status ?? "unknown"}`}
+                className={`health-strip ${healthStatus}`}
                 aria-live="polite"
               >
                 <div className="health-icon">
@@ -339,20 +412,24 @@ export default function App() {
                     {loading
                       ? "Conectando ao laboratório"
                       : healthy
-                        ? "Seu serviço está operacional"
-                        : service?.status === "critical"
-                          ? "O serviço HTTP precisa de atenção"
-                          : service?.status === "warning"
-                            ? "Tempo de resposta acima do limite"
+                        ? page === "overview"
+                          ? "Seus serviços estão operacionais"
+                          : "Seu serviço está operacional"
+                        : healthStatus === "critical"
+                          ? "Um serviço está indisponível"
+                          : healthStatus === "warning"
+                            ? "Um serviço exige atenção"
                             : "Aguardando dados do laboratório"}
                   </strong>
                   <p>
                     {healthy
-                      ? "A sonda HTTP respondeu com sucesso na última verificação."
-                      : service?.status === "critical"
-                        ? "A sonda recebeu uma falha. A regra confirmará o incidente após 15 segundos."
-                        : service?.status === "warning"
-                          ? "A sonda ultrapassou 500 ms. O alerta exige 30 segundos de degradação."
+                      ? page === "overview"
+                        ? "As sondas HTTP e SQL responderam com sucesso na última verificação."
+                        : "A sonda HTTP respondeu com sucesso na última verificação."
+                      : healthStatus === "critical"
+                        ? "Uma sonda recebeu uma falha. A regra confirmará o incidente após 15 segundos."
+                        : healthStatus === "warning"
+                          ? "Consulte o detalhe do serviço para verificar latência e conexões. As regras exigem confirmação persistente."
                           : "A primeira coleta pode levar alguns segundos. Dados ausentes não indicam operação normal."}
                   </p>
                 </div>
@@ -369,13 +446,13 @@ export default function App() {
                     Serviços monitorados <Server size={15} />
                   </span>
                   <strong>
-                    01<small> / 04 previstos</small>
+                    02<small> / 04 previstos</small>
                   </strong>
-                  <p>HTTP integrado nesta etapa</p>
+                  <p>HTTP e PostgreSQL integrados</p>
                 </div>
                 <div className="metric">
                   <span>
-                    Disponibilidade no período <Activity size={15} />
+                    Disponibilidade HTTP <Activity size={15} />
                   </span>
                   <strong>
                     {formatMetric(service?.availability_percent)}
@@ -385,7 +462,7 @@ export default function App() {
                 </div>
                 <div className="metric">
                   <span>
-                    Latência p95 <Radio size={15} />
+                    Latência HTTP p95 <Radio size={15} />
                   </span>
                   <strong>
                     {formatMetric(service?.p95_ms, 0)}
@@ -440,7 +517,9 @@ export default function App() {
                   <div>
                     <h2>
                       Serviços monitorados{" "}
-                      <span className="count-badge">1</span>
+                      <span className="count-badge">
+                        {page === "overview" ? 2 : 1}
+                      </span>
                     </h2>
                     <p>Estado observado na última coleta.</p>
                   </div>
@@ -453,8 +532,14 @@ export default function App() {
                   </button>
                 </div>
                 <ServiceTable
-                  data={displayData}
-                  onSelect={() => go("service")}
+                  services={
+                    page === "overview"
+                      ? [httpCurrent, pgCurrent]
+                      : [httpCurrent]
+                  }
+                  onSelect={(id) =>
+                    go(id === "postgres" ? "postgres" : "service")
+                  }
                 />
                 <CollectionNote />
               </section>
@@ -517,8 +602,8 @@ export default function App() {
               <b>·</b>Atualização a cada 5 s
             </span>
             <span>
-              AulaRedes <b>/</b> Etapa HTTP{" "}
-              <span className="version">v0.1</span>
+              AulaRedes <b>/</b> HTTP + PostgreSQL{" "}
+              <span className="version">v0.2</span>
             </span>
           </footer>
         </main>

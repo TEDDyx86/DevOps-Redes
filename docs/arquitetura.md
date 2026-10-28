@@ -15,7 +15,7 @@ flowchart LR
     A -->|SMTP| M[Mailpit: caixa local]
 ```
 
-O frontend compilado é servido pelo FastAPI, no mesmo host e porta. Apenas o backend acessa Prometheus a partir da interface. Consultas PromQL são fixas no código, sem entrada livre do navegador. O backend também executa a sonda do laboratório; um worker separado pode ser extraído quando houver outros serviços.
+O frontend compilado é servido pelo FastAPI, no mesmo host e porta. Apenas o backend acessa Prometheus a partir da interface. Consultas PromQL são fixas no código, sem entrada livre do navegador. O backend executa as sondas HTTP e PostgreSQL e a carga SQL em tarefas independentes.
 
 ## Componentes e dados
 
@@ -27,7 +27,15 @@ O frontend compilado é servido pelo FastAPI, no mesmo host e porta. Apenas o ba
 | Alertmanager | Volume alerts | Deduplicação, e-mail e webhook |
 | Mailpit | Volume mail, até 200 mensagens | Recebimento local de SMTP |
 
-SQLite é suficiente para eventos desta primeira etapa. A expansão para banco inclui um PostgreSQL para a aplicação e outro serviço monitorado separado, evitando que uma falha didática interrompa o armazenamento de incidentes.
+SQLite persiste os incidentes independentemente do PostgreSQL monitorado. Nesta etapa, não migramos os eventos para o serviço em que provocamos falhas. O novo container SQL possui volume próprio, não expõe porta no host e habilita `pg_stat_statements`.
+
+## Fluxo PostgreSQL
+
+O monitor se conecta com `lab_monitor`, executa `SELECT 1` e lê as estatísticas SQL. O gerador conecta com `lab_workload` e altera somente uma tabela limitada a 1.000 registros. Ambos têm timeout e reconexão; não usam o papel administrador. O snapshot do coletor é exportado atomicamente no `/metrics` existente.
+
+Prometheus armazena séries `postgres_*`; `/api/postgres` fornece o detalhe para o frontend. Falha SQL não é confundida com ausência de coleta: sonda concluída com erro é crítica, enquanto amostra com mais de 20 s é desconhecida. Estatísticas correntes são ocultadas quando o banco cai ou a coleta detalhada falha. A visão geral combina os estados dos dois serviços, sem deixar HTTP saudável esconder PostgreSQL indisponível.
+
+O runbook PostgreSQL descreve os limites de cada métrica. QPS mede comandos do usuário de laboratório; commits e rollbacks são contadores globais do banco e incluem monitoramento. A latência SQL é conexão + SELECT 1, não p95. CPU, memória, disco e consultas lentas ainda não são coletados.
 
 ## Significado dos indicadores
 

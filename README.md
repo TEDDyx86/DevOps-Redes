@@ -4,7 +4,7 @@ Plataforma de monitoramento para o trabalho final de Redes de Computadores e Int
 
 ## Estado da construção
 
-**Etapa 1: HTTP.** Serviço real instrumentado, sonda de disponibilidade, séries no Prometheus, dashboard React, incidentes persistidos e e-mails locais pelo Alertmanager/Mailpit. PostgreSQL, DNS, SMTP monitorado e monitoramentos de segurança são as próximas entregas; não aparecem como integrados.
+**Etapa 2: HTTP + PostgreSQL.** Dois serviços reais, sondas independentes, séries no Prometheus, dashboards React, incidentes persistidos e e-mails locais pelo Alertmanager/Mailpit. DNS, SMTP monitorado e monitoramentos de segurança são as próximas entregas.
 
 ## Iniciar no Windows
 
@@ -25,6 +25,9 @@ Ou execute `./scripts/start.ps1` no PowerShell. Se a política do computador imp
 - Prometheus: http://localhost:9090
 - Alertmanager: http://localhost:9093
 - Serviço HTTP monitorado: http://localhost:8001/work
+- Dashboard PostgreSQL: http://localhost:8000/#postgres
+
+O banco SQL usa PostgreSQL 17.11 com volume persistente e usuários separados para administração, monitoramento e carga. Sua porta não é publicada no host. Ao atualizar uma instalação da etapa HTTP, execute novamente `python scripts/configure.py` antes do Compose para gerar os três novos segredos SQL.
 
 Aguarde cerca de 15 segundos para as primeiras taxas. O coletor faz uma sonda HTTP e uma requisição real de trabalho a cada ciclo (mínimo de 5 segundos, somado ao tempo das respostas). Toda métrica exibida vem desse tráfego ou de requisições feitas pelo usuário.
 
@@ -39,6 +42,8 @@ Aguarde cerca de 15 segundos para as primeiras taxas. O coletor faz uma sonda HT
 Os tempos das regras começam quando o Prometheus observa a condição, portanto não são cronômetros exatos a partir do clique. A mudança de estado no dashboard pode preceder a confirmação do alerta.
 
 ## Encerrar e preservar o histórico
+
+Para testar a parada e recuperação do banco, use `docker compose stop postgres` e depois `docker compose start postgres`. O dashboard e os incidentes continuam disponíveis durante a falha. O roteiro completo está no runbook PostgreSQL.
 
 ```powershell
 docker compose down
@@ -83,8 +88,17 @@ Para repetir a demonstração automatizada com a stack em execução:
 
 O roteiro muda o modo do serviço de demonstração, verifica incidentes e e-mails locais e restaura o modo normal. Leva alguns minutos por respeitar as janelas reais dos alertas.
 
+Para verificar especificamente o PostgreSQL, incluindo parada real e preservação do volume:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/verify_postgres.py
+```
+
+O banco é restaurado ao final do teste, inclusive se uma verificação falhar.
+
 - [Arquitetura e métricas](docs/arquitetura.md)
 - [Runbook HTTP e playbook de incidentes](docs/runbook-http.md)
+- [Runbook PostgreSQL](docs/runbook-postgres.md)
 - [Roadmap dos 20 dias](docs/roadmap.md)
 - [Validação e limites](docs/validacao.md)
 

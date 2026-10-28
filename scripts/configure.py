@@ -12,7 +12,7 @@ def configure(root: Path):
                 key, value = line.split("=", 1)
                 values[key.strip()] = value.strip()
     additions = []
-    for key in ["LAB_TOKEN", "WEBHOOK_TOKEN"]:
+    for key in ["LAB_TOKEN", "WEBHOOK_TOKEN", "POSTGRES_ADMIN_PASSWORD", "POSTGRES_MONITOR_PASSWORD", "POSTGRES_WORKLOAD_PASSWORD"]:
         if not values.get(key):
             values[key] = secrets.token_hex(24)
             additions.append(f"{key}={values[key]}")

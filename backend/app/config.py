@@ -13,6 +13,8 @@ class Settings:
     enable_probe: bool = True
     probe_interval: float = 5
     frontend_path: Path = Path("frontend/dist")
+    postgres_monitor_dsn: str = ""
+    postgres_workload_dsn: str = ""
 
     @classmethod
     def from_env(cls):
@@ -24,4 +26,6 @@ class Settings:
             lab_token=os.getenv("LAB_TOKEN", ""),
             enable_probe=os.getenv("ENABLE_PROBE", "true").lower() == "true",
             frontend_path=Path(os.getenv("FRONTEND_PATH", "frontend/dist")),
+            postgres_monitor_dsn=os.getenv("POSTGRES_MONITOR_DSN", ""),
+            postgres_workload_dsn=os.getenv("POSTGRES_WORKLOAD_DSN", ""),
         )

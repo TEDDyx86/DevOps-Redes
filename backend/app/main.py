@@ -18,6 +18,8 @@ from .config import Settings
 from .metrics import PrometheusClient
 from .probe import Probe
 from .storage import IncidentStore
+from .postgres_metrics import PostgresMetrics
+from .postgres_probe import PostgresProbe, run_workload
 
 
 class Alert(BaseModel):
@@ -44,19 +46,24 @@ def create_app(settings: Settings | None = None, transport=None):
     async def lifespan(app):
         app.state.store = IncidentStore(settings.database_path)
         app.state.probe = Probe()
+        app.state.postgres_probe = PostgresProbe()
         async with httpx.AsyncClient(timeout=5, transport=transport, trust_env=False) as client:
             app.state.client = client
             app.state.prometheus = PrometheusClient(client, settings.prometheus_url)
             task = asyncio.create_task(app.state.probe.run(client, settings.demo_url, settings.probe_interval)) if settings.enable_probe else None
+            postgres_task = asyncio.create_task(app.state.postgres_probe.run(settings.postgres_monitor_dsn)) if settings.postgres_monitor_dsn else None
+            workload_task = asyncio.create_task(run_workload(settings.postgres_workload_dsn)) if settings.postgres_workload_dsn else None
             try:
                 yield
             finally:
-                if task:
-                    task.cancel()
+                tasks = [item for item in [task, postgres_task, workload_task] if item is not None]
+                for item in tasks:
+                    item.cancel()
+                for item in tasks:
                     with suppress(asyncio.CancelledError):
-                        await task
+                        await item
 
-    app = FastAPI(title="AulaRedes API", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="AulaRedes API", version="0.2.0", lifespan=lifespan)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "api", "testserver"])
 
     def require_lab(request: Request, x_lab_token: str = Header(default="")):
@@ -68,13 +75,22 @@ def create_app(settings: Settings | None = None, transport=None):
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "version": "0.1.0"}
+        return {"status": "ok", "version": "0.2.0"}
 
     @app.get("/metrics")
     def metrics(request: Request):
         # Avoid exporting zero-initialized gauges before the first real probe.
         content = generate_latest(request.app.state.probe.registry) if request.app.state.probe.ready else b""
+        content += generate_latest(request.app.state.postgres_probe.registry)
         return Response(content=content, media_type=CONTENT_TYPE_LATEST)
+
+    @app.get("/api/postgres")
+    async def postgres(request: Request, window: Literal["15m", "1h", "6h", "24h"] = "15m"):
+        try:
+            return await PostgresMetrics(request.app.state.prometheus).overview(window)
+        except (httpx.HTTPError, ValueError, KeyError, TypeError):
+            logging.exception("Falha ao consultar métricas PostgreSQL")
+            raise HTTPException(503, "Prometheus indisponível. Não foi possível consultar as métricas do PostgreSQL.") from None
 
     @app.get("/api/overview")
     async def overview(request: Request, window: Literal["15m", "1h", "6h", "24h"] = "15m"):

@@ -1,7 +1,41 @@
 export type Status = "ok" | "warning" | "critical" | "unknown";
 export type Window = "15m" | "1h" | "6h" | "24h";
 export type Mode = "normal" | "slow" | "offline";
-export type Page = "overview" | "service" | "incidents" | "lab";
+export type Page = "overview" | "service" | "postgres" | "incidents" | "lab";
+
+export interface ServiceSummary {
+  id: string;
+  name: string;
+  protocol: string;
+  target: string;
+  status: Status;
+  checked_at: number | null;
+  latency_ms: number | null;
+  availability_percent: number | null;
+}
+
+export interface ChartSample {
+  timestamp: number;
+  rps?: number | null;
+  qps?: number | null;
+  latency_ms: number | null;
+}
+
+export interface PostgresOverview {
+  window: Window;
+  generated_at: number;
+  service: ServiceSummary;
+  stats: {
+    available: boolean;
+    connections: number | null;
+    connection_limit: number | null;
+    database_bytes: number | null;
+    commits_per_second: number | null;
+    rollbacks_per_second: number | null;
+    qps: number | null;
+  };
+  series: ChartSample[];
+}
 
 export interface Overview {
   window: Window;

@@ -28,3 +28,41 @@ groups:
         annotations:
           summary: Coleta da plataforma interrompida
           description: Prometheus não consegue coletar a sonda da plataforma. A disponibilidade do serviço está desconhecida.
+  - name: postgres-laboratorio
+    rules:
+      - alert: PostgreSQLLento
+        expr: (postgres_probe_duration_seconds{job="platform"} > 0.5) and (postgres_probe_success{job="platform"} == 1)
+        for: 30s
+        labels:
+          severity: warning
+          service: postgres
+        annotations:
+          summary: PostgreSQL com conexão e consulta lentas
+          description: A conexão e SELECT 1 excederam 500 ms por pelo menos 30 segundos. Investigue latência e recursos do banco.
+      - alert: PostgreSQLIndisponivel
+        expr: postgres_probe_success{job="platform"} == 0
+        for: 15s
+        labels:
+          severity: critical
+          service: postgres
+        annotations:
+          summary: PostgreSQL indisponível
+          description: A conexão SQL e SELECT 1 falharam por pelo menos 15 segundos. Verifique o container postgres e suas credenciais.
+      - alert: PostgreSQLConexoesElevadas
+        expr: (postgres_connections{job="platform"} / postgres_connections_limit{job="platform"} > 0.8) and (postgres_probe_success{job="platform"} == 1)
+        for: 30s
+        labels:
+          severity: warning
+          service: postgres
+        annotations:
+          summary: PostgreSQL com muitas conexões
+          description: O banco de laboratório ocupa mais de 80% do max_connections do cluster dedicado há pelo menos 30 segundos.
+      - alert: PostgreSQLEstatisticasIndisponiveis
+        expr: (postgres_stats_success{job="platform"} == 0) and (postgres_probe_success{job="platform"} == 1)
+        for: 30s
+        labels:
+          severity: warning
+          service: postgres
+        annotations:
+          summary: Estatísticas do PostgreSQL indisponíveis
+          description: SQL responde, mas a consulta de estatísticas falha. Verifique pg_stat_statements e o papel de monitoramento.
