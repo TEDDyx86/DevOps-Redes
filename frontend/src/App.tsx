@@ -90,8 +90,7 @@ const pageTitles: Record<Page, { title: string; subtitle: string }> = {
   },
   security: {
     title: "Segurança",
-    subtitle:
-      "Acessos ao painel, tentativas bloqueadas e eventos de autenticação.",
+    subtitle: "Tráfego dos serviços e eventos de autenticação do painel.",
   },
   lab: {
     title: "Laboratório",
@@ -401,7 +400,7 @@ export default function App({
         </nav>
         <div className="sidebar-bottom">
           <div className="version-pill">
-            ETAPA 05 <span>ACESSO PROTEGIDO</span>
+            ETAPA 06 <span>TRÁFEGO E ACESSO</span>
           </div>
           <p>
             Da requisição ao alerta.
@@ -750,7 +749,7 @@ export default function App({
             </span>
             <span>
               AulaRedes <b>/</b> HTTP · SQL · DNS · SMTP{" "}
-              <span className="version">v0.5</span>
+              <span className="version">v0.6</span>
             </span>
           </footer>
         </main>

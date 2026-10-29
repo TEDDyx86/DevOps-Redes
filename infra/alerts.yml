@@ -1,4 +1,22 @@
 groups:
+  - name: trafego-laboratorio
+    rules:
+      - alert: TrafegoAnormal
+        expr: security_traffic_anomaly{job="platform"} == 1
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Tráfego acima da referência: {{ $labels.service }}'
+          description: O volume do último minuto excede o maior valor entre três vezes a referência fixa e o piso do serviço há 30 segundos. Confira o teste de carga e o padrão de uso; aumento de volume não comprova um ataque.
+      - alert: TrafegoColetaIndisponivel
+        expr: security_traffic_sample_success{job="platform"} == 0
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Coleta de tráfego indisponível: {{ $labels.service }}'
+          description: Não foi possível medir uma taxa com sonda e fonte recentes por 30 segundos. O volume está desconhecido, não normal.
   - name: autenticacao-laboratorio
     rules:
       - alert: AutenticacaoSuspeita

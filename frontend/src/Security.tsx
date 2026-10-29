@@ -3,6 +3,7 @@ import { KeyRound, ShieldCheck, TriangleAlert } from "lucide-react";
 import { request } from "./api";
 import { IncidentsList, timeLabel } from "./components";
 import type { Incident } from "./types";
+import Traffic from "./Traffic";
 
 interface SecurityData {
   generated_at: number;
@@ -76,6 +77,8 @@ export default function Security({
       data.failures_recent.account >= data.account_limit);
   return (
     <>
+      <Traffic refresh={refresh} incidents={incidents} />
+      <h2 className="security-section-title">Acesso ao painel</h2>
       {error && (
         <div className="notice error" role="alert">
           <TriangleAlert size={17} />
@@ -192,9 +195,8 @@ export default function Security({
         />
       </section>
       <p className="security-note muted">
-        Esta etapa acompanha o acesso ao painel. Detecção de tráfego anormal,
-        alterações de configuração e vulnerabilidades dos serviços são as
-        próximas integrações.
+        O monitoramento de alterações de configuração e de vulnerabilidades dos
+        serviços será integrado nas próximas etapas.
       </p>
     </>
   );

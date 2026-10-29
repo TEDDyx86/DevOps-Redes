@@ -26,6 +26,8 @@ from .smtp_metrics import SMTPMetrics
 from .smtp_probe import SMTPProbe, run_smtp_workload
 from .auth_store import AuthStore
 from .auth import install_auth
+from .traffic import TrafficMonitor
+from .traffic_load import TrafficLoad
 
 
 class Alert(BaseModel):
@@ -45,6 +47,15 @@ class ModeRequest(BaseModel):
     mode: Literal["normal", "slow", "offline"]
 
 
+class TrafficRequest(BaseModel):
+    service: Literal["web-demo","postgres","dns","smtp","all"]
+    duration: int = Field(default=90,ge=30,le=90,strict=True)
+
+
+class CalibrationRequest(BaseModel):
+    service: Literal["web-demo","postgres","dns","smtp"]
+
+
 def create_app(settings: Settings | None = None, transport=None):
     settings = settings or Settings.from_env()
 
@@ -52,6 +63,9 @@ def create_app(settings: Settings | None = None, transport=None):
     async def lifespan(app):
         app.state.store = IncidentStore(settings.database_path)
         app.state.auth = AuthStore(settings.database_path.with_name("security.sqlite"), settings.auth_username, settings.auth_password_hash)
+        app.state.traffic = TrafficMonitor(settings.database_path.with_name("traffic.sqlite"))
+        app.state.traffic_load = TrafficLoad(settings)
+        app.state.traffic_control_lock = asyncio.Lock()
         app.state.probe = Probe()
         app.state.postgres_probe = PostgresProbe()
         app.state.dns_probe = DNSProbe()
@@ -66,17 +80,19 @@ def create_app(settings: Settings | None = None, transport=None):
             dns_workload_task = asyncio.create_task(run_dns_workload(settings.dns_server, settings.dns_port)) if settings.dns_server else None
             smtp_task = asyncio.create_task(app.state.smtp_probe.run(settings.smtp_host, settings.smtp_port)) if settings.smtp_host else None
             smtp_workload_task = asyncio.create_task(run_smtp_workload(settings.smtp_host, settings.smtp_port)) if settings.smtp_host else None
+            traffic_task = asyncio.create_task(app.state.traffic.run(app.state.prometheus)) if settings.enable_probe else None
             try:
                 yield
             finally:
-                tasks = [item for item in [task, postgres_task, workload_task, dns_task, dns_workload_task, smtp_task, smtp_workload_task] if item is not None]
+                await app.state.traffic_load.stop()
+                tasks = [item for item in [task, postgres_task, workload_task, dns_task, dns_workload_task, smtp_task, smtp_workload_task, traffic_task] if item is not None]
                 for item in tasks:
                     item.cancel()
                 for item in tasks:
                     with suppress(asyncio.CancelledError):
                         await item
 
-    app = FastAPI(title="AulaRedes API", version="0.5.0", lifespan=lifespan)
+    app = FastAPI(title="AulaRedes API", version="0.6.0", lifespan=lifespan)
     install_auth(app, settings)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "api", "testserver"])
 
@@ -89,7 +105,42 @@ def create_app(settings: Settings | None = None, transport=None):
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "version": "0.5.0"}
+        return {"status": "ok", "version": "0.6.0"}
+
+    @app.get("/api/security/traffic")
+    def traffic_overview(request: Request):
+        return request.app.state.traffic.overview()
+
+    @app.post("/api/security/traffic/calibrate",dependencies=[Depends(require_lab)])
+    async def calibrate_traffic(body: CalibrationRequest, request: Request):
+        async with request.app.state.traffic_control_lock:
+            if request.app.state.traffic_load.overview()["status"] == "running":
+                raise HTTPException(409,"Encerre o teste de tráfego antes de recalibrar.")
+            try:
+                await asyncio.to_thread(request.app.state.traffic.recalibrate,body.service)
+            except ValueError as error:
+                raise HTTPException(409,str(error)) from None
+        return request.app.state.traffic.overview()
+
+    @app.get("/api/lab/traffic")
+    def traffic_job(request: Request):
+        return request.app.state.traffic_load.overview()
+
+    @app.post("/api/lab/traffic",dependencies=[Depends(require_lab)])
+    async def start_traffic(body: TrafficRequest,request: Request):
+        async with request.app.state.traffic_control_lock:
+            selected = [item for item in request.app.state.traffic.overview()["services"] if body.service=="all" or item["id"]==body.service]
+            if any(item["status"]!="normal" for item in selected):
+                raise HTTPException(409,"Aguarde referências prontas, dados atuais e volume normal antes de iniciar o teste.")
+            try:
+                return request.app.state.traffic_load.start(body.service,body.duration)
+            except ValueError as error:
+                raise HTTPException(409,str(error)) from None
+
+    @app.delete("/api/lab/traffic",dependencies=[Depends(require_lab)])
+    async def stop_traffic(request: Request):
+        async with request.app.state.traffic_control_lock:
+            return await request.app.state.traffic_load.stop()
 
     @app.get("/metrics")
     def metrics(request: Request):
@@ -99,6 +150,7 @@ def create_app(settings: Settings | None = None, transport=None):
         content += generate_latest(request.app.state.dns_probe.registry)
         content += generate_latest(request.app.state.smtp_probe.registry)
         content += generate_latest(request.app.state.auth.registry)
+        content += generate_latest(request.app.state.traffic.registry)
         return Response(content=content, media_type=CONTENT_TYPE_LATEST)
 
     @app.get("/api/smtp")

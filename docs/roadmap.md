@@ -15,7 +15,7 @@ Data inicial: 28/10/2026. Entrega considerada: 17/11/2026. A implementação pod
 1. PostgreSQL integrado em volume separado: disponibilidade, conexão + SELECT 1, conexões, commits/s, rollbacks/s, tamanho e comandos SQL/s do usuário de laboratório. CPU/memória/disco, pools e consultas lentas exigem instrumentação complementar. O armazenamento de incidentes permanece independente em SQLite.
 2. CoreDNS integrado: zona local, sondas UDP/TCP, consultas/s, latência, p95 do servidor, NXDOMAIN separado dos erros e alerta/recuperação. A resolução do host permanece inalterada.
 3. SMTP integrado com Python/aiosmtpd e fila SQLite persistente: aceitação, entrega, retry, rejeição, volume, histograma e canal de alertas independente. A proposta inicial de Postfix foi substituída pelo MTA local instrumentado. Paradas do receptor e do SMTP verificadas, com recuperação das pendências.
-4. Autenticação do painel integrada: login, sessão revogável, contagem de falhas por conta/IP, bloqueio temporário, eventos e alerta/e-mail. Próximos monitores: autenticação dos serviços, comparação de tráfego com referência, hashes de configuração e vulnerabilidades associadas às imagens/serviços.
+4. Autenticação do painel integrada: login, sessão revogável, contagem de falhas por conta/IP, bloqueio temporário, eventos e alerta/e-mail. Em 29/10, comparação de tráfego com referência fixa integrada aos quatro serviços, com carga limitada, incidentes e recuperação. Próximos monitores: autenticação dos serviços, hashes de configuração e vulnerabilidades associadas às imagens/serviços.
 5. Relatório ABNT, requisitos rastreados ao PDF, testes e roteiro da apresentação.
 
 ## Limites de escopo

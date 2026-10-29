@@ -23,7 +23,15 @@ Login e sessões usam `security.sqlite` no volume de incidentes, independente do
 
 Middleware exige sessão nos dados e controles; health, métricas e webhook possuem acesso próprio. Uvicorn da API ignora proxy headers. O limitador reserva tentativas atomicamente em orçamento de 60 s separado do histórico: cinco falhas por IP ou dez por conta impedem novos logins até a janela liberar. O histórico é limitado a 10.000 eventos/7 dias; contadores persistentes e agregação dos bloqueios por segundo sobrevivem à limpeza.
 
-Prometheus coleta `security_auth_attempts_total`, `security_auth_failures_recent` e `security_auth_blocked_recent` sem rótulos de identidade. O alerta `AutenticacaoSuspeita` confirma o limiar por 10 s e usa o mesmo canal de incidentes/e-mails. A interface Segurança lê eventos autenticados da API. Os demais detectores de segurança ainda não estão implementados.
+Prometheus coleta `security_auth_attempts_total`, `security_auth_failures_recent` e `security_auth_blocked_recent` sem rótulos de identidade. O alerta `AutenticacaoSuspeita` confirma o limiar por 10 s e usa o mesmo canal de incidentes/e-mails. A interface Segurança lê eventos autenticados da API. A comparação de tráfego está descrita a seguir; autenticação dos serviços, arquivos e vulnerabilidades permanecem pendentes.
+
+## Referência de tráfego
+
+Uma tarefa independente consulta quatro expressões fixas no Prometheus para taxas de 1 min. Gates de sonda, fonte nativa, estatísticas SQL e atualidade impedem usar contadores antigos como tráfego atual. Referências são médias de pelo menos 25 amostras cobrindo 120 s contínuos, persistidas em `traffic.sqlite`; o snapshot em memória só é publicado após commit.
+
+Referências prontas ficam fixas. Limiar por serviço é max(3× referência, piso). API e exportador diferenciam volume normal, acima do limiar, aprendizado e ausência de dados. Prometheus confirma aumentos por 30 s e envia incidentes/e-mails. O estado de fonte desconhecida tem regra própria; ausência de série de volume não comprova recuperação.
+
+Um job temporário por vez gera protocolos locais com alvo fixo, limites de frequência/operações/duração e cancelamento. Sessão, CSRF e LAB_TOKEN protegem início, cancelamento e recalibração. Cancelar encerra tarefas irmãs e conexões; SMTP usa streams assíncronos. Referências persistem após reiniciar a API, enquanto o job é transitório. O [runbook de tráfego](runbook-trafego.md) descreve unidades e limites.
 
 ## Fluxo SMTP
 
@@ -39,7 +47,7 @@ CoreDNS hospeda `aularedes.test` em UDP/TCP 1053, apenas na rede Compose, sem su
 
 Sondas são exportadas no `/metrics` da API; Prometheus também coleta métricas nativas do CoreDNS na porta 9153 (`job=dns`). `/api/dns` combina as duas fontes: falha de resolução é crítica; ausência do exporter com resolução funcionando remove apenas as estatísticas detalhadas. Resultados antigos expiram em 20 s.
 
-Consultas/s e p95 de processamento vêm do CoreDNS. NXDOMAIN é separado de SERVFAIL/REFUSED/FORMERR/NOTIMP. Há um registro SERVFAIL intencional para verificação; a carga periódica não o utiliza. A visão geral combina três estados, e incidentes DNS usam o mesmo webhook autenticado e armazenamento independente.
+Consultas/s e p95 de processamento vêm do CoreDNS. NXDOMAIN é separado de SERVFAIL/REFUSED/FORMERR/NOTIMP. Há um registro SERVFAIL intencional para verificação; a carga periódica não o utiliza. A visão geral combina os quatro serviços, e incidentes DNS usam o mesmo webhook autenticado e armazenamento independente.
 
 ## Componentes e dados
 

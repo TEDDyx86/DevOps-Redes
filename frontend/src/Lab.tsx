@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { request } from "./api";
 import type { Lab as LabState, Mode } from "./types";
+import TrafficLab from "./TrafficLab";
 
 const modes: { mode: Mode; title: string; text: string; icon: typeof Play }[] =
   [
@@ -73,117 +74,122 @@ export default function Lab({
   }
 
   return (
-    <div className="lab-layout">
-      <section className="panel lab-controls">
-        <div className="panel-heading">
-          <div>
-            <h2>Controle do serviço HTTP</h2>
-            <p>Falhas controladas para testar o monitoramento.</p>
-          </div>
-          <FlaskConical size={21} />
-        </div>
-        <div className="token-field">
-          <label htmlFor="lab-token">
-            <KeyRound size={15} />
-            Token do laboratório
-          </label>
-          <input
-            id="lab-token"
-            type="password"
-            autoComplete="off"
-            value={token}
-            onChange={(event) => setToken(event.target.value)}
-            placeholder="Cole o LAB_TOKEN do arquivo .env"
-          />
-          <p>
-            Usado apenas nesta sessão. Necessário para alterar o serviço de
-            demonstração.
-          </p>
-        </div>
-        {state && !state.available && (
-          <p className="notice error">
-            Serviço de demonstração sem conexão. Confira se o container web-demo
-            está executando.
-          </p>
-        )}
-        <div className="mode-list">
-          {modes.map(({ mode, title, text, icon: Icon }) => (
-            <div
-              className={`mode-row ${state?.mode === mode ? "selected" : ""}`}
-              key={mode}
-            >
-              <span className="mode-icon">
-                <Icon size={22} />
-              </span>
-              <div>
-                <h3>
-                  {title}{" "}
-                  {state?.mode === mode && (
-                    <span className="current-mode">Atual</span>
-                  )}
-                </h3>
-                <p>{text}</p>
-              </div>
-              <button
-                className="button secondary"
-                disabled={
-                  !token.trim() ||
-                  !!pending ||
-                  !state?.available ||
-                  state.mode === mode
-                }
-                onClick={() => change(mode)}
-              >
-                {pending === mode ? "Aplicando…" : "Aplicar"}
-              </button>
+    <>
+      <div className="lab-layout">
+        <section className="panel lab-controls">
+          <div className="panel-heading">
+            <div>
+              <h2>Controle do serviço HTTP</h2>
+              <p>Falhas controladas para testar o monitoramento.</p>
             </div>
-          ))}
-        </div>
-        {message && (
-          <p
-            role={message.error ? "alert" : "status"}
-            className={`notice ${message.error ? "error" : "success"}`}
+            <FlaskConical size={21} />
+          </div>
+          <div className="token-field">
+            <label htmlFor="lab-token">
+              <KeyRound size={15} />
+              Token do laboratório
+            </label>
+            <input
+              id="lab-token"
+              type="password"
+              autoComplete="off"
+              value={token}
+              onChange={(event) => setToken(event.target.value)}
+              placeholder="Cole o LAB_TOKEN do arquivo .env"
+            />
+            <p>
+              Usado apenas nesta sessão. Necessário para alterar o serviço de
+              demonstração.
+            </p>
+          </div>
+          {state && !state.available && (
+            <p className="notice error">
+              Serviço de demonstração sem conexão. Confira se o container
+              web-demo está executando.
+            </p>
+          )}
+          <div className="mode-list">
+            {modes.map(({ mode, title, text, icon: Icon }) => (
+              <div
+                className={`mode-row ${state?.mode === mode ? "selected" : ""}`}
+                key={mode}
+              >
+                <span className="mode-icon">
+                  <Icon size={22} />
+                </span>
+                <div>
+                  <h3>
+                    {title}{" "}
+                    {state?.mode === mode && (
+                      <span className="current-mode">Atual</span>
+                    )}
+                  </h3>
+                  <p>{text}</p>
+                </div>
+                <button
+                  className="button secondary"
+                  disabled={
+                    !token.trim() ||
+                    !!pending ||
+                    !state?.available ||
+                    state.mode === mode
+                  }
+                  onClick={() => change(mode)}
+                >
+                  {pending === mode ? "Aplicando…" : "Aplicar"}
+                </button>
+              </div>
+            ))}
+          </div>
+          {message && (
+            <p
+              role={message.error ? "alert" : "status"}
+              className={`notice ${message.error ? "error" : "success"}`}
+            >
+              {message.text}
+            </p>
+          )}
+        </section>
+        <aside className="lab-guide">
+          <span className="eyebrow">ROTEIRO DE DEMONSTRAÇÃO</span>
+          <h2>Observe o ciclo completo.</h2>
+          <ol>
+            <li>
+              <strong>Comece em operação normal.</strong>
+              <span>Aguarde as primeiras amostras no dashboard.</span>
+            </li>
+            <li>
+              <strong>Provoque uma falha.</strong>
+              <span>
+                Aplique lentidão ou indisponibilidade e acompanhe o estado.
+              </span>
+            </li>
+            <li>
+              <strong>Confira o alerta.</strong>
+              <span>
+                Após a confirmação, veja o incidente e o e-mail local.
+              </span>
+            </li>
+            <li>
+              <strong>Restaure o serviço.</strong>
+              <span>Volte ao normal e confirme a resolução.</span>
+            </li>
+          </ol>
+          <a
+            className="button primary"
+            href="http://localhost:8025"
+            target="_blank"
+            rel="noreferrer"
           >
-            {message.text}
+            Abrir caixa de e-mail <ArrowUpRight size={16} />
+          </a>
+          <p className="small muted">
+            As mensagens ficam no Mailpit local. Nenhum e-mail é enviado para
+            uma conta externa.
           </p>
-        )}
-      </section>
-      <aside className="lab-guide">
-        <span className="eyebrow">ROTEIRO DE DEMONSTRAÇÃO</span>
-        <h2>Observe o ciclo completo.</h2>
-        <ol>
-          <li>
-            <strong>Comece em operação normal.</strong>
-            <span>Aguarde as primeiras amostras no dashboard.</span>
-          </li>
-          <li>
-            <strong>Provoque uma falha.</strong>
-            <span>
-              Aplique lentidão ou indisponibilidade e acompanhe o estado.
-            </span>
-          </li>
-          <li>
-            <strong>Confira o alerta.</strong>
-            <span>Após a confirmação, veja o incidente e o e-mail local.</span>
-          </li>
-          <li>
-            <strong>Restaure o serviço.</strong>
-            <span>Volte ao normal e confirme a resolução.</span>
-          </li>
-        </ol>
-        <a
-          className="button primary"
-          href="http://localhost:8025"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Abrir caixa de e-mail <ArrowUpRight size={16} />
-        </a>
-        <p className="small muted">
-          As mensagens ficam no Mailpit local. Nenhum e-mail é enviado para uma
-          conta externa.
-        </p>
-      </aside>
-    </div>
+        </aside>
+      </div>
+      <TrafficLab token={token} />
+    </>
   );
 }

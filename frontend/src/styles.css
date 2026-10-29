@@ -1786,3 +1786,82 @@ h1 {
     display: none;
   }
 }
+.traffic-panel h2,
+.traffic-lab h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.traffic-panel,
+.traffic-incidents {
+  margin-bottom: 24px;
+}
+.security-section-title {
+  margin: 30px 0 20px;
+  font-size: 16px;
+  font-weight: 550;
+}
+.traffic-table small {
+  display: block;
+  color: var(--muted);
+  font-size: 9px;
+  margin-top: 6px;
+}
+.traffic-calibration {
+  margin: 0 21px 21px;
+  border-top: 1px solid var(--line);
+  padding-top: 15px;
+  font-size: 11px;
+}
+.traffic-calibration summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+.traffic-calibration p {
+  color: var(--muted);
+  line-height: 1.8;
+}
+.traffic-calibration-form,
+.traffic-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: end;
+}
+.traffic-calibration-form label,
+.traffic-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 11px;
+}
+.traffic-calibration-form input,
+.traffic-calibration-form select,
+.traffic-controls select {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface);
+  max-width: 100%;
+  min-width: 0;
+}
+.traffic-lab {
+  margin-top: 24px;
+}
+.traffic-controls {
+  padding: 0 21px;
+}
+.traffic-job-state {
+  padding: 15px 21px 21px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  font-size: 11px;
+}
+.traffic-job-state span {
+  color: var(--muted);
+}
+.traffic-lab > .notice {
+  margin-inline: 21px;
+}

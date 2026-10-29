@@ -86,6 +86,16 @@ Há um aviso de depreciação da biblioteca Starlette sobre a integração de te
 - Navegação real confirmou formulário de entrada, login, aba Segurança, eventos persistidos, logout e nova entrada, além de sessão preservada após recarga. Login e eventos foram conferidos em 390×844 e 1440×1000, com largura de página igual à largura útil da viewport (375 e 1425 px), sem transbordamento horizontal.
 - Evidências: `docs/evidencias/login-desktop.jpg`, `login-mobile.jpg`, `security-desktop.jpg` e `security-mobile.jpg`. Relatório sem segredos: `tmp/auth-e2e-result.json`.
 
+## Etapa de tráfego: 29/10/2026
+
+- **52 testes backend passaram** (suíte com 51 e teste adicional de fonte com erro/taxa inválida), incluindo aprendizado contínuo, zero real, fonte desconhecida, referência fixa/persistente, commit antes de publicar estado, teto de duração, cancelamento imediato, encerramento de tarefas irmãs e fechamento da conexão SMTP durante cancelamento.
+- **10 testes frontend passaram**, incluindo conversão consistente de taxa/referência/limiar SMTP para msg/min e expiração do estado atual sem apagar referência. Build TypeScript/Vite concluído; `promtool` validou **17 regras**.
+- **20 verificações reais passaram** com `scripts/verify_traffic.py`: proteção de sessão/token, quatro referências prontas, job único/cancelamento, carga local dos quatro protocolos, quatro taxas acima dos limiares, referências fixas durante o pico, recalibração bloqueada, quatro incidentes e quatro e-mails, encerramento automático com contadores dentro dos tetos, recuperação das taxas, quatro resoluções e quatro e-mails de recuperação, referências preservadas após restart da API e serviços operacionais.
+- O job de 90 s confirmou 448 requisições HTTP, 893 comandos SQL, 893 consultas DNS e 90 mensagens SMTP, sem falhas ou cancelamentos em voo nessa execução. Todos ficaram dentro dos limites definidos.
+- Revisão independente encontrou SMTP em thread que podia sobreviver ao cancelamento. Reproduzido em teste com receptor retendo confirmação de DATA; substituído por cliente de streams com fechamento da conexão. Também corrigida mensagem de erro de polling que não desaparecia após a recuperação. Revisor confirmou os ajustes sem novo achado bloqueante.
+- Navegação real: Segurança com quatro volumes elevados e quatro incidentes, recuperação para volume normal, Laboratório com início e cancelamento de carga HTTP e contadores reais. Referências permaneceram iguais. Layout 1440×1000 e 390×844 sem transbordamento horizontal da página (larguras úteis 1425 e 375 px); tabela usa rolagem interna no celular.
+- Evidências: `traffic-anomalous.jpg`, `traffic-desktop.jpg` e `traffic-mobile.jpg` em `docs/evidencias/`. Relatório temporário sem segredos: `tmp/traffic-e2e-result.json`.
+
 ## Requisitos ainda em construção
 
-CPU/memória/I/O, pools e consultas lentas, detecção de anomalias de tráfego e tentativas de autenticação nos serviços monitorados, monitoramento de arquivos, vulnerabilidades conhecidas e relatório ABNT. A autenticação da interface e a detecção de falhas repetidas no painel já estão implementadas.
+CPU/memória/I/O, pools e consultas lentas, tentativas de autenticação nos serviços monitorados, monitoramento de arquivos, vulnerabilidades conhecidas e relatório ABNT. Autenticação da interface, detecção de falhas repetidas no painel e comparação de volume dos quatro serviços com referência fixa já estão implementadas.

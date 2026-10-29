@@ -27,7 +27,7 @@ O orçamento de tentativas é reservado atomicamente antes da verificação de s
 
 Eventos registram horário, usuário informado, IP da conexão e resultado: entrada autorizada, credencial inválida, bloqueio ou saída. Nunca incluem senha, hash, cookie ou CSRF. Prometheus recebe contadores por resultado e o maior número de falhas recentes por IP/conta, sem rótulos com identidade.
 
-A aba [Segurança](http://localhost:8000/#security) acompanha autenticação do painel. Ela não representa detecção de força bruta em PostgreSQL, DNS ou SMTP; esses monitores e as outras categorias de segurança permanecem pendentes.
+A seção **Acesso ao painel** da aba [Segurança](http://localhost:8000/#security) acompanha autenticação da plataforma. Ela não representa detecção de força bruta em PostgreSQL, DNS ou SMTP. A mesma aba apresenta agora volume de tráfego dos quatro serviços; autenticação dos serviços, hashes de configuração e vulnerabilidades permanecem pendentes.
 
 ## Demonstrar alerta e recuperação
 
