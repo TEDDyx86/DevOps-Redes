@@ -1865,3 +1865,42 @@ h1 {
 .traffic-lab > .notice {
   margin-inline: 21px;
 }
+.integrity-panel,
+.integrity-panel + .panel {
+  margin-bottom: 24px;
+}
+.integrity-panel h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.integrity-table small {
+  display: block;
+  color: var(--muted);
+  margin-top: 6px;
+  font-size: 9px;
+}
+.integrity-review {
+  margin-top: 18px;
+}
+.integrity-review ul {
+  list-style: none;
+  padding: 0;
+}
+.integrity-review li {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.integrity-review code {
+  display: block;
+  overflow-wrap: anywhere;
+  margin-top: 7px;
+  font-size: 10px;
+}
+.integrity-panel .traffic-calibration-form label {
+  max-width: 100%;
+  min-width: 0;
+}
+.integrity-events .table-scroll {
+  max-height: 360px;
+}

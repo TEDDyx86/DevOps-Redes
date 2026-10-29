@@ -8,15 +8,17 @@ from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Counter, Histogram, generate_latest
 from pydantic import BaseModel
+from .config import load_http_config
 
 
 class Mode(BaseModel):
     mode: Literal["normal", "slow", "offline"]
 
 
-def create_demo(token=None):
+def create_demo(token=None,runtime_config=None):
     app = FastAPI(title="HTTP de demonstração")
     app.state.mode = "normal"
+    config=runtime_config or load_http_config()
     token = token if token is not None else os.getenv("LAB_TOKEN", "")
     registry = CollectorRegistry()
     requests = Counter("demo_http_requests_total", "Completed HTTP requests", ["path", "status"], registry=registry)
@@ -28,7 +30,7 @@ def create_demo(token=None):
             return await call_next(request)
         started = time.perf_counter()
         if app.state.mode == "slow":
-            await asyncio.sleep(.85)
+            await asyncio.sleep(config.slow_delay_seconds)
         response = JSONResponse({"detail": "Indisponibilidade controlada do laboratório"}, status_code=503) if app.state.mode == "offline" else await call_next(request)
         requests.labels(request.url.path, str(response.status_code)).inc()
         duration.labels(request.url.path).observe(time.perf_counter() - started)
@@ -40,8 +42,8 @@ def create_demo(token=None):
 
     @app.get("/work")
     async def work():
-        await asyncio.sleep(.035)
-        return {"message": "Requisição real processada", "timestamp": time.time()}
+        await asyncio.sleep(config.work_delay_seconds)
+        return {"message": config.message, "timestamp": time.time()}
 
     @app.get("/metrics")
     def metrics():

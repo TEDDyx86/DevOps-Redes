@@ -25,10 +25,12 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       AUTH_PASSWORD_HASH_FILE: /etc/aularedes/secrets/admin-password-hash
       AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
+      CONFIG_WATCH_ROOT: /etc/aularedes/observed
     ports: ["127.0.0.1:8000:8000"]
     volumes:
       - incidents:/data
       - ./.runtime/secrets/admin-password-hash:/etc/aularedes/secrets/admin-password-hash:ro
+      - ./infra:/etc/aularedes/observed:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
       interval: 5s
@@ -40,11 +42,13 @@ services:
     command: ["uvicorn", "demo.main:app", "--host", "0.0.0.0", "--port", "8001"]
     environment:
       LAB_TOKEN: ${LAB_TOKEN:?Execute python scripts/configure.py}
+      HTTP_CONFIG_FILE: /etc/aularedes/runtime/http.json
+    volumes: ["./infra:/etc/aularedes/runtime:ro"]
     ports: ["127.0.0.1:8001:8001"]
 
   postgres:
     image: postgres:17.11-alpine
-    command: ["postgres", "-c", "shared_preload_libraries=pg_stat_statements", "-c", "max_connections=100"]
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
     environment:
       POSTGRES_USER: lab_admin
       POSTGRES_DB: lab_network
@@ -54,6 +58,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./infra/postgres-init.sql:/docker-entrypoint-initdb.d/10-lab.sql:ro
+      - ./infra/postgres:/etc/postgresql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U lab_admin -d lab_network"]
       interval: 5s
@@ -71,8 +76,7 @@ services:
     # Official binary carries this file capability; keep it in the bounding set.
     cap_add: [NET_BIND_SERVICE]
     volumes:
-      - ./infra/dns/Corefile:/etc/coredns/Corefile:ro
-      - ./infra/dns/db.aularedes.test:/etc/coredns/db.aularedes.test:ro
+      - ./infra/dns:/etc/coredns:ro
     networks: [monitoring]
     restart: unless-stopped
     security_opt: [no-new-privileges:true]
@@ -80,7 +84,11 @@ services:
   smtp:
     <<: *platform
     command: ["uvicorn", "demo.smtp_server:app", "--host", "0.0.0.0", "--port", "8027"]
-    volumes: ["smtp-data:/data"]
+    environment:
+      SMTP_CONFIG_FILE: /etc/aularedes/runtime/smtp.json
+    volumes:
+      - smtp-data:/data
+      - ./infra:/etc/aularedes/runtime:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import smtplib; s=smtplib.SMTP('127.0.0.1',2525,timeout=2); assert s.noop()[0]==250; s.quit()"]
       interval: 5s
@@ -102,8 +110,7 @@ services:
     image: prom/prometheus:v3.15.1
     command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus", "--storage.tsdb.retention.time=7d"]
     volumes:
-      - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./infra/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ./infra:/etc/prometheus:ro
       - metrics:/prometheus
     ports: ["127.0.0.1:9090:9090"]
     networks: [monitoring]
@@ -113,8 +120,8 @@ services:
     image: prom/alertmanager:v0.34.1
     command: ["--config.file=/etc/alertmanager/alertmanager.yml", "--storage.path=/alertmanager"]
     volumes:
-      - ./infra/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-      - ./.runtime/secrets/webhook-token:/etc/alertmanager/secrets/webhook-token:ro
+      - ./infra:/etc/alertmanager:ro
+      - ./.runtime/secrets/webhook-token:/run/aularedes/webhook-token:ro
       - alerts:/alertmanager
     ports: ["127.0.0.1:9093:9093"]
     networks: [monitoring]

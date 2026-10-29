@@ -4,7 +4,7 @@ Plataforma de monitoramento para o trabalho final de Redes de Computadores e Int
 
 ## Estado da construção
 
-**Etapa 6: tráfego acima da referência.** HTTP, PostgreSQL, DNS e SMTP possuem comparação de volume com referência inicial persistente, alertas e demonstração de carga local. O painel mantém login, sessões revogáveis e eventos de autenticação. Monitoramento de configurações e vulnerabilidades são as próximas entregas.
+**Etapa 7: integridade das configurações.** O painel acompanha oito arquivos reais com SHA-256, referência aprovada e persistente, eventos, alertas e recuperação por e-mail. HTTP, PostgreSQL, DNS e SMTP também possuem comparação de tráfego com referência fixa. Login, sessões revogáveis e eventos de autenticação estão integrados. Vulnerabilidades dos serviços são a próxima entrega.
 
 ## Iniciar no Windows
 
@@ -34,6 +34,8 @@ Ou execute `./scripts/start.ps1` no PowerShell. Se a política do computador imp
 O painel exige login. No primeiro acesso, use `ADMIN_USERNAME` e `ADMIN_PASSWORD` do arquivo local `.env`, gerados por `scripts/configure.py`. Ao atualizar uma instalação existente, execute novamente esse script antes de reconstruir a stack. Ele preserva os segredos anteriores. O botão de sair revoga a sessão; o [runbook de autenticação](docs/runbook-autenticacao.md) detalha limites e demonstração.
 
 O detector de tráfego aparece na aba Segurança. Na primeira execução, aguarde pelo menos dois minutos de coleta contínua em operação habitual para formar a referência de cada serviço. Em Laboratório, o teste de tráfego gera carga local por até 90 s com o LAB_TOKEN, sem enviar tráfego a destinos externos. Veja os limites no [runbook de tráfego](docs/runbook-trafego.md).
+
+Na mesma aba, **Integridade das configurações** acompanha oito arquivos reais. Confira os arquivos do repositório e aprove os primeiros hashes com sessão e LAB_TOKEN; o monitor não confia automaticamente no primeiro conteúdo observado. Alterações e arquivos ausentes geram alertas. O [runbook de integridade](docs/runbook-integridade.md) explica aprovação, estados, limites e a demonstração restaurável com `python scripts/verify_integrity.py`.
 
 O SMTP de laboratório usa Python/aiosmtpd e uma fila SQLite em volume separado. Aceita mensagens somente para `aluno@aularedes.test`, mede aceitação e entrega separadamente e tenta novamente quando o receptor cai. O canal de alertas usa outro Mailpit, portanto continua funcionando durante uma falha no SMTP monitorado. Detalhes e limites em [runbook SMTP](docs/runbook-smtp.md).
 
@@ -149,6 +151,7 @@ Execute os roteiros de demonstração sequencialmente, sem reconstruir ou interr
 - [Runbook SMTP](docs/runbook-smtp.md)
 - [Runbook de autenticação](docs/runbook-autenticacao.md)
 - [Runbook de tráfego e referências](docs/runbook-trafego.md)
+- [Runbook de integridade das configurações](docs/runbook-integridade.md)
 - [Roadmap dos 20 dias](docs/roadmap.md)
 - [Validação e limites](docs/validacao.md)
 

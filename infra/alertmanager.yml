@@ -22,4 +22,4 @@ receivers:
         http_config:
           authorization:
             type: Bearer
-            credentials_file: /etc/alertmanager/secrets/webhook-token
+            credentials_file: /run/aularedes/webhook-token

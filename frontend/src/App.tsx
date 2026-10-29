@@ -90,7 +90,7 @@ const pageTitles: Record<Page, { title: string; subtitle: string }> = {
   },
   security: {
     title: "Segurança",
-    subtitle: "Tráfego dos serviços e eventos de autenticação do painel.",
+    subtitle: "Integridade dos arquivos, tráfego dos serviços e acesso ao painel.",
   },
   lab: {
     title: "Laboratório",
@@ -749,7 +749,7 @@ export default function App({
             </span>
             <span>
               AulaRedes <b>/</b> HTTP · SQL · DNS · SMTP{" "}
-              <span className="version">v0.6</span>
+              <span className="version">v0.7</span>
             </span>
           </footer>
         </main>

@@ -1,0 +1,5 @@
+{
+  "work_delay_seconds": 0.035,
+  "slow_delay_seconds": 0.85,
+  "message": "Requisição real processada"
+}

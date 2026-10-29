@@ -12,6 +12,7 @@ from fastapi.responses import Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from .smtp_queue import SMTPQueue
+from .config import load_smtp_config
 
 
 class QueueHandler:
@@ -67,9 +68,10 @@ async def deliver(queue, host, port):
 
 @asynccontextmanager
 async def lifespan(app):
-    queue = SMTPQueue(os.getenv("SMTP_QUEUE_PATH", "/data/smtp.sqlite"))
+    config=load_smtp_config()
+    queue = SMTPQueue(os.getenv("SMTP_QUEUE_PATH", "/data/smtp.sqlite"),capacity=config.queue_capacity)
     controller = Controller(QueueHandler(queue), hostname="0.0.0.0", port=2525,
-                            data_size_limit=65536, enable_SMTPUTF8=False, timeout=30,
+                            data_size_limit=config.message_size_limit, enable_SMTPUTF8=False, timeout=30,
                             command_call_limit=100)
     controller.start()
     app.state.queue = queue

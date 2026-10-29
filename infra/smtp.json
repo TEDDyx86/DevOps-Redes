@@ -1,0 +1,4 @@
+{
+  "message_size_limit": 65536,
+  "queue_capacity": 1000
+}

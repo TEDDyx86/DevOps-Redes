@@ -94,6 +94,16 @@ Um estado pontual não é um incidente confirmado. As regras exigem 30 s de lent
 
 O webhook usa a chave composta `(fingerprint, startsAt)` para manter um evento por ocorrência. Resoluções são persistidas; uma notificação firing atrasada não reabre um evento resolvido. Os horários são armazenados em UTC e exibidos no fuso do navegador.
 
+## Fluxo de integridade das configurações
+
+A API observa uma lista fixa de oito arquivos em `infra/`, montada somente leitura em `/etc/aularedes/observed`. HTTP e SMTP carregam seus JSON na inicialização; PostgreSQL usa `config_file=/etc/postgresql/postgresql.conf`, com dados/HBA no volume anterior. CoreDNS, Prometheus e Alertmanager também recebem diretórios montados para acompanhar substituições atômicas do editor. Segredos têm mounts separados, fora da observação.
+
+O coletor independente lê no máximo 1 MiB por arquivo, calcula SHA-256 e compara com a referência explicitamente aprovada. No Linux usa descritores relativos sem seguir links, rejeitando tipos especiais e alterações durante a leitura. Estados sem referência, alterado, ausente, ilegível e antigo são distintos. Publica o snapshot depois do commit em `integrity.sqlite`; falhas próprias de armazenamento não interrompem as métricas dos protocolos.
+
+`GET /api/security/integrity` fornece estados, hashes e até 100 eventos. O POST `/approve` exige sessão, CSRF e LAB_TOKEN, recebe IDs fixos e hashes revisados e relê todos os arquivos antes de persistir o lote. A referência não acompanha alterações automaticamente. Eventos deduplicados por transição têm teto de 10.000 e poda periódica de 7 dias; referências e última observação sobrevivem ao restart. Métricas `security_config_*` usam labels de cardinalidade fixa, sem hashes/conteúdo.
+
+Prometheus confirma mudança/ausência por 15 s, verificação indisponível por 30 s ou referência pendente por 2 min; Alertmanager envia incidentes e e-mails no canal independente. O painel mostra a revisão, o histórico e as recuperações. O [runbook de integridade](runbook-integridade.md) delimita cobertura e diferença entre arquivo em disco e configuração carregada pelo processo.
+
 ## Referências técnicas
 
 - [Prometheus: visão geral](https://prometheus.io/docs/introduction/overview/)

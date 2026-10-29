@@ -1,4 +1,30 @@
 groups:
+  - name: configuracoes-laboratorio
+    rules:
+      - alert: ConfiguracaoAlterada
+        expr: security_config_changed{job="platform"} == 1
+        for: 15s
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Configuração alterada ou ausente: {{ $labels.file_id }}'
+          description: O arquivo difere da referência aprovada ou está ausente há pelo menos 15 segundos. Revise o repositório antes de aprovar uma nova referência.
+      - alert: ConfiguracaoVerificacaoIndisponivel
+        expr: security_config_check_success{job="platform"} == 0
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Verificação de configuração indisponível: {{ $labels.file_id }}'
+          description: Leitura indisponível ou observação sem atualização há pelo menos 30 segundos. A integridade do arquivo é desconhecida.
+      - alert: ConfiguracaoReferenciaPendente
+        expr: (security_config_baseline_ready{job="platform"} == 0) and (security_config_readable{job="platform"} == 1)
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Referência de configuração pendente: {{ $labels.file_id }}'
+          description: Arquivo legível sem referência aprovada por pelo menos 2 minutos. Confira seu conteúdo no repositório e aprove o hash na aba Segurança.
   - name: trafego-laboratorio
     rules:
       - alert: TrafegoAnormal

@@ -1,6 +1,7 @@
 import asyncio
 import hmac
 import logging
+import sqlite3
 from contextlib import asynccontextmanager, suppress
 from datetime import datetime
 from typing import Literal
@@ -28,6 +29,7 @@ from .auth_store import AuthStore
 from .auth import install_auth
 from .traffic import TrafficMonitor
 from .traffic_load import TrafficLoad
+from .integrity import IntegrityMonitor
 
 
 class Alert(BaseModel):
@@ -56,6 +58,15 @@ class CalibrationRequest(BaseModel):
     service: Literal["web-demo","postgres","dns","smtp"]
 
 
+class IntegrityApprovalItem(BaseModel):
+    file_id: str = Field(min_length=1,max_length=64)
+    observed_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class IntegrityApprovalRequest(BaseModel):
+    items: list[IntegrityApprovalItem] = Field(min_length=1,max_length=8)
+
+
 def create_app(settings: Settings | None = None, transport=None):
     settings = settings or Settings.from_env()
 
@@ -66,6 +77,7 @@ def create_app(settings: Settings | None = None, transport=None):
         app.state.traffic = TrafficMonitor(settings.database_path.with_name("traffic.sqlite"))
         app.state.traffic_load = TrafficLoad(settings)
         app.state.traffic_control_lock = asyncio.Lock()
+        app.state.integrity = IntegrityMonitor(settings.database_path.with_name("integrity.sqlite"),settings.integrity_root)
         app.state.probe = Probe()
         app.state.postgres_probe = PostgresProbe()
         app.state.dns_probe = DNSProbe()
@@ -81,18 +93,19 @@ def create_app(settings: Settings | None = None, transport=None):
             smtp_task = asyncio.create_task(app.state.smtp_probe.run(settings.smtp_host, settings.smtp_port)) if settings.smtp_host else None
             smtp_workload_task = asyncio.create_task(run_smtp_workload(settings.smtp_host, settings.smtp_port)) if settings.smtp_host else None
             traffic_task = asyncio.create_task(app.state.traffic.run(app.state.prometheus)) if settings.enable_probe else None
+            integrity_task = asyncio.create_task(app.state.integrity.run()) if settings.integrity_root is not None else None
             try:
                 yield
             finally:
                 await app.state.traffic_load.stop()
-                tasks = [item for item in [task, postgres_task, workload_task, dns_task, dns_workload_task, smtp_task, smtp_workload_task, traffic_task] if item is not None]
+                tasks = [item for item in [task, postgres_task, workload_task, dns_task, dns_workload_task, smtp_task, smtp_workload_task, traffic_task, integrity_task] if item is not None]
                 for item in tasks:
                     item.cancel()
                 for item in tasks:
                     with suppress(asyncio.CancelledError):
                         await item
 
-    app = FastAPI(title="AulaRedes API", version="0.6.0", lifespan=lifespan)
+    app = FastAPI(title="AulaRedes API", version="0.7.0", lifespan=lifespan)
     install_auth(app, settings)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "api", "testserver"])
 
@@ -105,7 +118,24 @@ def create_app(settings: Settings | None = None, transport=None):
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "version": "0.6.0"}
+        return {"status": "ok", "version": "0.7.0"}
+
+    @app.get("/api/security/integrity")
+    def integrity_overview(request: Request):
+        try:
+            return request.app.state.integrity.overview()
+        except (sqlite3.Error,OSError):
+            raise HTTPException(503,"Histórico de integridade indisponível.") from None
+
+    @app.post("/api/security/integrity/approve",dependencies=[Depends(require_lab)])
+    async def approve_integrity(body: IntegrityApprovalRequest,request: Request):
+        try:
+            await asyncio.to_thread(request.app.state.integrity.approve,[item.model_dump() for item in body.items],request.state.session["username"])
+            return request.app.state.integrity.overview()
+        except ValueError as error:
+            raise HTTPException(409,str(error)) from None
+        except (sqlite3.Error,OSError):
+            raise HTTPException(503,"Não foi possível persistir a referência de integridade.") from None
 
     @app.get("/api/security/traffic")
     def traffic_overview(request: Request):
@@ -151,6 +181,7 @@ def create_app(settings: Settings | None = None, transport=None):
         content += generate_latest(request.app.state.smtp_probe.registry)
         content += generate_latest(request.app.state.auth.registry)
         content += generate_latest(request.app.state.traffic.registry)
+        content += generate_latest(request.app.state.integrity.registry)
         return Response(content=content, media_type=CONTENT_TYPE_LATEST)
 
     @app.get("/api/smtp")
