@@ -206,6 +206,13 @@ export function IncidentsList({
           <div className="incident-copy">
             <strong>{item.summary}</strong>
             <p>{item.description}</p>
+            {item.status === "resolved" && item.resolution_source === "later_resolved_event" && (
+              <p>
+                Resolução confirmada por evento posterior
+                {item.resolution_evidence_ended_at ? ` em ${timeLabel(item.resolution_evidence_ended_at, true)}` : ""}.
+                {" "}Término original não recebido.
+              </p>
+            )}
             <span>
               {item.service} <b>·</b> {timeLabel(item.started_at, true)}
             </span>
@@ -214,7 +221,7 @@ export function IncidentsList({
             className={`incident-state ${item.status === "resolved" ? "resolved" : item.severity}`}
           >
             {item.status === "resolved"
-              ? "Resolvido"
+              ? item.resolution_source === "later_resolved_event" ? "Reconciliado" : "Resolvido"
               : item.severity === "critical"
                 ? "Crítico"
                 : "Atenção"}

@@ -8,6 +8,8 @@ Plataforma de monitoramento para o trabalho final de Redes de Computadores e Int
 
 **Atualização de 30/10:** o PostgreSQL mantém a versão 17.11 e usa uma imagem derivada com gosu recompilado em Go 1.27.3. A análise passou de 3 críticos/32 altos para zero críticos/altos, com 50 pacotes catalogados e dados preservados. Cinco achados médios/baixos permanecem para triagem. Procedimento, aplicabilidade dos avisos e reversão no [runbook da atualização PostgreSQL](docs/runbook-postgres-remediation.md).
 
+O histórico agora identifica ciclos antigos **Reconciliados** quando há resolução posterior confirmada do mesmo alerta, preservando os registros e deixando explícito que o término original não foi recebido. Os alertas atuais continuam ativos. [Critérios, backup e verificação](docs/runbook-incidentes.md).
+
 ## Iniciar no Windows
 
 Pré-requisitos: Docker Desktop com containers Linux e Python 3.13 ou mais recente (configuração e worker local de vulnerabilidades). A primeira construção precisa de internet para baixar imagens e dependências.
@@ -155,6 +157,7 @@ Para verificar vulnerabilidades reais, relatórios e notificações, use `.\.ven
 
 - [Arquitetura e métricas](docs/arquitetura.md)
 - [Runbook HTTP e playbook de incidentes](docs/runbook-http.md)
+- [Incidentes e reconciliação do histórico](docs/runbook-incidentes.md)
 - [Runbook PostgreSQL](docs/runbook-postgres.md)
 - [Atualização preventiva PostgreSQL, backup e reversão](docs/runbook-postgres-remediation.md)
 - [Runbook DNS](docs/runbook-dns.md)

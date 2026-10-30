@@ -1,0 +1,222 @@
+{
+  "schema_version": 1,
+  "completed_at": "2026-10-30T14:53:55.045522+00:00",
+  "scope": "Reconciliação histórica conservadora e QA visual de Incidentes/Segurança",
+  "tests": {
+    "backend_passed": 128,
+    "backend_skipped": 1,
+    "skip_reason": "Caso POSIX não executável no Windows; sem mudança no worker nesta etapa",
+    "frontend_passed": 18,
+    "typescript_vite_build": "passed",
+    "migration_checks": [
+      "Histórico protegido por login e todas as 58 chaves originais preservadas",
+      "Três ciclos históricos reconciliados por prova direta, sem término inventado ou textos alterados",
+      "Dois alertas altos reais HTTP/SMTP permanecem e conferem com Prometheus",
+      "Imagens dos quatro serviços preservadas; somente API substituída",
+      "SQLite íntegro; registros originais preservados junto a ciclos novos do monitoramento contínuo",
+      "Reconciliação e sessão persistem após restart da API",
+      "Quatro protocolos operacionais e oito configurações íntegras",
+      "PostgreSQL mantém análise atual com zero crítico/alto e cinco achados restantes",
+      "Alertas atuais estabilizados após reinício e ciclos novos preservados"
+    ],
+    "http_checks": [
+      {
+        "check": "HTTP operacional e coleta real",
+        "passed": true
+      },
+      {
+        "check": "Tráfego saudável com taxa de erro zero",
+        "passed": true
+      },
+      {
+        "check": "Estado de atenção observado",
+        "passed": true
+      },
+      {
+        "check": "Incidente de lentidão persistido",
+        "passed": true
+      },
+      {
+        "check": "E-mail de alerta recebido via SMTP",
+        "passed": true
+      },
+      {
+        "check": "HTTP indisponível observado",
+        "passed": true
+      },
+      {
+        "check": "Incidente crítico persistido",
+        "passed": true
+      },
+      {
+        "check": "Métricas preservadas durante falha",
+        "passed": true
+      },
+      {
+        "check": "Estado operacional recuperado",
+        "passed": true
+      },
+      {
+        "check": "Incidente crítico resolvido",
+        "passed": true
+      },
+      {
+        "check": "Incidente de lentidão resolvido",
+        "passed": true
+      },
+      {
+        "check": "E-mail de recuperação recebido",
+        "passed": true
+      }
+    ]
+  },
+  "preservation": {
+    "backup_integrity_verified": true,
+    "original_rows": 58,
+    "original_keys_preserved": 58,
+    "rows_after_migration_and_restart": 60,
+    "rows_after_http_test": 62,
+    "active_before": 5,
+    "active_after": 2,
+    "note": "Reinícios e teste HTTP adicionam ciclos reais. Todas as chaves e textos originais foram preservados."
+  },
+  "reconciled": [
+    {
+      "fingerprint": "00dee9304c50bb18",
+      "started_at": "2026-10-29T13:20:56.828000Z",
+      "name": "VulnerabilidadeAlta",
+      "service": "web-demo",
+      "severity": "warning",
+      "status": "resolved",
+      "ended_at": null,
+      "resolution_source": "later_resolved_event",
+      "reconciled_at": "2026-10-30T14:30:52.872226Z",
+      "resolution_evidence_started_at": "2026-10-30T13:32:31.828000Z",
+      "resolution_evidence_ended_at": "2026-10-30T13:37:01.828000Z"
+    },
+    {
+      "fingerprint": "52164ae0d647d06d",
+      "started_at": "2026-10-29T13:20:56.828000Z",
+      "name": "VulnerabilidadeCritica",
+      "service": "postgres",
+      "severity": "critical",
+      "status": "resolved",
+      "ended_at": null,
+      "resolution_source": "later_resolved_event",
+      "reconciled_at": "2026-10-30T14:30:52.872226Z",
+      "resolution_evidence_started_at": "2026-10-30T13:32:31.828000Z",
+      "resolution_evidence_ended_at": "2026-10-30T13:37:01.828000Z"
+    },
+    {
+      "fingerprint": "1184624a609fa9a2",
+      "started_at": "2026-10-29T13:20:56.828000Z",
+      "name": "VulnerabilidadeAlta",
+      "service": "smtp",
+      "severity": "warning",
+      "status": "resolved",
+      "ended_at": null,
+      "resolution_source": "later_resolved_event",
+      "reconciled_at": "2026-10-30T14:30:52.872226Z",
+      "resolution_evidence_started_at": "2026-10-30T13:32:31.828000Z",
+      "resolution_evidence_ended_at": "2026-10-30T13:37:01.828000Z"
+    }
+  ],
+  "current_active": [
+    {
+      "name": "VulnerabilidadeAlta",
+      "service": "smtp",
+      "severity": "warning",
+      "started_at": "2026-10-30T14:31:31.828000Z"
+    },
+    {
+      "name": "VulnerabilidadeAlta",
+      "service": "web-demo",
+      "severity": "warning",
+      "started_at": "2026-10-30T14:31:31.828000Z"
+    }
+  ],
+  "monitored_images_preserved": {
+    "web-demo": "sha256:273e03ead80fa8e26b81e9e2de79ab9a3e5c8469d4785320ad531647bf8bb61c",
+    "postgres": "sha256:aa939f67eff969ddd02b34009cbf6bf30c53b87b12c92cc7bf52b23fd6c06717",
+    "dns": "sha256:0a9d8c8ddf34347eb59aad9a8784f0710de88d6d112726d11d271f9bc6daca26",
+    "smtp": "sha256:273e03ead80fa8e26b81e9e2de79ab9a3e5c8469d4785320ad531647bf8bb61c"
+  },
+  "postgres": {
+    "image_id": "sha256:aa939f67eff969ddd02b34009cbf6bf30c53b87b12c92cc7bf52b23fd6c06717",
+    "scanned_at": 1793368980.0026255,
+    "db_built_at": 1793341408.0,
+    "package_count": 50,
+    "counts": {
+      "critical": 0,
+      "high": 0,
+      "medium": 4,
+      "low": 1,
+      "negligible": 0,
+      "unknown": 0
+    }
+  },
+  "ui": {
+    "checks": [
+      "Três incidentes históricos mostram Reconciliado, confirmação posterior e término original desconhecido",
+      "Desktop: nenhuma rolagem horizontal da página em Incidentes e Segurança",
+      "PostgreSQL: cinco achados visíveis e filtro crítico vazio",
+      "HTTP: próxima/anterior mudam os achados e retornam à página 1 de 4",
+      "HTTP: filtro Alta mostra 55 achados em duas páginas",
+      "DNS: três achados não classificados continuam publicados",
+      "Mobile 390×844: tabelas de Segurança têm rolagem horizontal interna utilizável e a página não transborda",
+      "Mobile: estado Reconciliado e explicação permanecem legíveis, sem transbordamento"
+    ],
+    "desktop": {
+      "incidents": {
+        "clientWidth": 1426,
+        "height": 1000,
+        "scrollWidth": 1426,
+        "width": 1441
+      },
+      "vulnerabilities": {
+        "clientWidth": 1425,
+        "height": 1000,
+        "scrollWidth": 1425,
+        "width": 1439
+      }
+    },
+    "mobile": {
+      "incidents": {
+        "clientWidth": 376,
+        "height": 844,
+        "scrollWidth": 376,
+        "width": 390
+      },
+      "vulnerabilities": {
+        "clientWidth": 376,
+        "height": 844,
+        "scrollWidth": 376,
+        "tables": [
+          {
+            "contentWidth": 599,
+            "overflowX": "auto",
+            "regionWidth": 293
+          },
+          {
+            "contentWidth": 553,
+            "overflowX": "auto",
+            "regionWidth": 293
+          }
+        ],
+        "width": 390
+      }
+    },
+    "console": [],
+    "screenshots": [
+      "incidents-reconciled-desktop.png",
+      "incidents-reconciled-mobile.png",
+      "vulnerabilities-desktop.png",
+      "vulnerabilities-mobile.png"
+    ]
+  },
+  "limits": [
+    "Término original dos ciclos reconciliados permanece desconhecido; a confirmação posterior é identificada separadamente.",
+    "Reconciliação requer resolução posterior direta persistida, não ausência de alertas ou dados. Uma origem Alertmanager no laboratório.",
+    "Cinco achados médios/baixos PostgreSQL e os achados HTTP/SMTP/DNS continuam publicados para triagem."
+  ]
+}

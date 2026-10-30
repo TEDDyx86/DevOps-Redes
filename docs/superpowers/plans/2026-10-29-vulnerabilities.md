@@ -28,6 +28,6 @@ Aplicar `docs/superpowers/specs/2026-10-29-vulnerabilities-design.md`. Sem explo
 - [x] Executar análise real e verificar contratos, inventário/imagem, contagens e alertas/e-mails aplicáveis: nove verificações iniciais passaram em 29/10.
 - [x] Revisão independente usando requesting-code-review; corrigir limites de saída e encerramento de subprocessos, reproduzidos em testes.
 - [x] Concluir teste integrado de interrupção/recuperação do coletor e persistência final após recuperação do ambiente Docker: 18 verificações passaram em 30/10.
-- [ ] Conferir desktop/mobile e evidências quando a automação visual estiver disponível.
+- [x] Conferir desktop/mobile e evidências: concluído em 30/10 na etapa de reconciliação, com filtros, páginas, console e rolagem interna; capturas em docs/evidencias.
 - [x] Atualizar README, arquitetura, roadmap, validação e runbook.
 - [x] Salvar commit local com o estado validado e pendências explícitas.

@@ -51,3 +51,5 @@ Arquivos: `docs/runbook-postgres-remediation.md`, `docs/evidencias/postgres-reme
 ## Resultado
 
 Concluídos 14 checks SQL, 11 de vulnerabilidades, cinco direcionados e quatro de inicialização, além de backup restaurado. Mesmos 50 pacotes; zero crítico/alto, quatro médios e um baixo. Mesma impressão digital de todos os dados no mesmo volume. Evento atual resolvido, com e-mail; permanece um incidente histórico órfão de 29/10 para reconciliação futura, preservado e documentado na evidência. QA visual continua pendente.
+
+Atualização posterior em 30/10: incidente histórico e QA visual atendidos na etapa de reconciliação. Três ciclos históricos foram reconciliados por prova posterior direta, preservando os registros e o término desconhecido. Ver docs/runbook-incidentes.md e docs/evidencias/incident-reconciliation.json. A descrição acima registra o estado observado ao concluir a atualização PostgreSQL.

@@ -22,7 +22,9 @@ Data inicial: 28/10/2026. Entrega considerada: 17/11/2026. A implementação pod
 
 Em 30/10, a triagem dos três avisos críticos PostgreSQL levou à recompilação preventiva do gosu com Go 1.27.3, preservando PostgreSQL 17.11 e o volume. Resultado: zero crítico/alto e cinco médio/baixo, com a mesma base e 50 pacotes. Backup restaurado, comparação integral dos dados e regressões SQL/vulnerabilidades concluídos; detalhes em [validação](validacao.md) e [runbook](runbook-postgres-remediation.md).
 
-Próximas pendências: reconciliar o incidente crítico histórico de 29/10 que ficou aberto após interrupção do monitoramento; concluir QA visual da seção de vulnerabilidades; avançar nos requisitos de recursos/autenticação dos serviços e no relatório ABNT. Os demais achados das imagens continuam para triagem.
+Também em 30/10, foram reconciliados três ciclos históricos de HTTP/PostgreSQL/SMTP por evidência direta posterior, preservando as 58 chaves originais. O contador manteve apenas os dois alertas altos reais de HTTP/SMTP. Passaram 128 testes backend (um caso POSIX pulado no Windows), 18 frontend, nove verificações da migração e 12 HTTP com alertas/e-mails. QA visual de Incidentes/Segurança concluído em desktop e celular, incluindo filtros, paginação, console e ausência de transbordamento. [Procedimento e limites](runbook-incidentes.md).
+
+Próximas pendências: métricas de CPU/memória/I/O e demais recursos; tentativas de autenticação dos serviços monitorados; relatório ABNT e apresentação. Os demais achados das imagens continuam para triagem.
 
 ## Limites de escopo
 

@@ -118,6 +118,10 @@ export interface Incident {
   severity: string;
   service: string;
   status: "firing" | "resolved";
+  resolution_source?: "alertmanager" | "later_resolved_event" | null;
+  reconciled_at?: string | null;
+  resolution_evidence_started_at?: string | null;
+  resolution_evidence_ended_at?: string | null;
 }
 export interface Lab {
   mode: Mode | null;

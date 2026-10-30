@@ -11,14 +11,14 @@ import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .config import Settings
 from .metrics import PrometheusClient
 from .probe import Probe
-from .storage import IncidentStore
+from .storage import IncidentStore, resolution_window
 from .postgres_metrics import PostgresMetrics
 from .postgres_probe import PostgresProbe, run_workload
 from .dns_metrics import DNSMetrics
@@ -40,6 +40,13 @@ class Alert(BaseModel):
     endsAt: datetime | None = None
     labels: dict[str, str]
     annotations: dict[str, str] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def valid_resolution(self):
+        if self.status == "resolved" and resolution_window(
+                self.startsAt.isoformat(), self.endsAt.isoformat() if self.endsAt is not None else None) is None:
+            raise ValueError("Resolução exige início/término com fuso, em ordem e sem término futuro.")
+        return self
 
 
 class AlertBatch(BaseModel):
