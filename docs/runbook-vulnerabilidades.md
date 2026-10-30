@@ -64,6 +64,8 @@ Os intervalos começam quando o Prometheus observa a condição, com coleta/aval
 
 Esta etapa não atualiza pacotes/imagens automaticamente nem instala versões vulneráveis para criar uma demonstração. Os achados atuais são reais e podem permanecer abertos ao final dos testes.
 
+Em 30/10, foi aplicada uma [atualização preventiva do gosu na imagem PostgreSQL](runbook-postgres-remediation.md), com backup restaurado, 50 pacotes catalogados e redução de 3 críticos/32 altos para zero críticos/altos. Os avisos eram associados à versão Go do utilitário, sem prova de exploração SQL. Os cinco achados restantes e os avisos das outras imagens continuam publicados. Um registro crítico histórico de 29/10 permaneceu aberto no SQLite após interrupção do monitoramento; o evento desta atualização foi resolvido e o Prometheus não tem alerta de vulnerabilidade PostgreSQL ativo. A reconciliação do registro histórico é pendente, sem alteração manual do histórico nesta etapa.
+
 ## Verificação reproduzível
 
 Com os quatro serviços e o worker ativos:

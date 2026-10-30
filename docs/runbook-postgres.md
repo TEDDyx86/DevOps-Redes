@@ -29,6 +29,8 @@ O gerador lê e atualiza uma tabela fixa de 1.000 registros a cada 2 s. A cada c
 
 Os dados ficam no volume `postgres-data`. Não use `docker compose down -v` para parar o laboratório, pois remove os volumes.
 
+Desde 30/10, a imagem mantém PostgreSQL 17.11 e recompila o gosu com Go 1.27.3. Para atualizar uma instalação com dados, consultar o [procedimento de triagem, backup validado e reversão](runbook-postgres-remediation.md) antes de reconstruir/substituir o serviço.
+
 ## Investigar falha inesperada
 
 ```powershell

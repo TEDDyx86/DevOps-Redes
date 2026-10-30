@@ -1,0 +1,175 @@
+{
+  "schema_version": 1,
+  "completed_at": "2026-10-30T14:08:49.749242+00:00",
+  "scope": "Atualização preventiva Go do gosu na imagem PostgreSQL 17.11; sem supressões de achados",
+  "before": {
+    "image_id": "sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b",
+    "scanned_at": 1793366955.7564821,
+    "db_built_at": 1793341408.0,
+    "scanner_version": "0.121.0",
+    "package_count": 50,
+    "package_types": {
+      "apk": 45,
+      "go-module": 4,
+      "binary": 1
+    },
+    "counts": {
+      "critical": 3,
+      "high": 32,
+      "medium": 26,
+      "low": 2,
+      "negligible": 0,
+      "unknown": 1
+    }
+  },
+  "after": {
+    "image_id": "sha256:aa939f67eff969ddd02b34009cbf6bf30c53b87b12c92cc7bf52b23fd6c06717",
+    "scanned_at": 1793368980.0026255,
+    "db_built_at": 1793341408.0,
+    "scanner_version": "0.121.0",
+    "package_count": 50,
+    "package_types": {
+      "apk": 45,
+      "go-module": 4,
+      "binary": 1
+    },
+    "counts": {
+      "critical": 0,
+      "high": 0,
+      "medium": 4,
+      "low": 1,
+      "negligible": 0,
+      "unknown": 0
+    }
+  },
+  "gosu_version": "1.19 (go1.27.3 on linux/amd64; gc)",
+  "data": {
+    "volume": "aularedes_postgres-data",
+    "before": {
+      "rows": 1000,
+      "sum": 10853,
+      "sha256": "353e4f2adbd9111296bd2f1b57e7ae7bb240c643bd1211e09ab85261c49730d4"
+    },
+    "after": {
+      "rows": 1000,
+      "sum": 10853,
+      "sha256": "353e4f2adbd9111296bd2f1b57e7ae7bb240c643bd1211e09ab85261c49730d4"
+    },
+    "identical_during_paused_workload": true,
+    "backup_restore_verified": true
+  },
+  "checks": {
+    "candidate_initialization": [
+      "Bootstrap novo concluído e postmaster final pronto: 1.000 linhas, dois papéis e extensão",
+      "gosu preserva UID/GID/HOME e informa Go 1.27.3",
+      "Servidor 17.11 sem compilador/fonte na imagem final",
+      "SIGINT encerra servidor normalmente em até cinco segundos"
+    ],
+    "final_postmaster_verified": true,
+    "targeted_remediation": [
+      "Imagem em execução com análise atual: 50 pacotes, zero crítico e zero alto",
+      "Três avisos alvo ausentes; cinco restantes publicados sem supressões",
+      "Evento crítico desta atualização resolvido e nenhum alerta de vulnerabilidade PostgreSQL ativo no Prometheus",
+      "Novo e-mail local de resolução do aviso crítico PostgreSQL",
+      "Quatro protocolos operacionais e oito configurações íntegras"
+    ],
+    "postgres_regression": [
+      "PostgreSQL operacional com estatísticas reais",
+      "Comandos SQL e commits medidos",
+      "Rollbacks reais observados",
+      "Papel de monitoramento não pode alterar dados",
+      "Parada real detectada",
+      "Estatísticas antigas ocultadas durante a falha",
+      "HTTP continua operacional com PostgreSQL parado",
+      "Incidente PostgreSQL persistido sem depender do banco",
+      "E-mail crítico PostgreSQL recebido",
+      "Banco recuperado e coletor reconectado",
+      "Taxas SQL voltam após a recuperação",
+      "Tabela e atualizações preservadas no volume",
+      "Incidente PostgreSQL resolvido",
+      "E-mail de recuperação PostgreSQL recebido"
+    ],
+    "vulnerability_regression": [
+      "Relatórios exigem login",
+      "Filtros fixos e ausência de execução do scanner pela API",
+      "Quatro análises reais atuais",
+      "Identidade das quatro imagens confere com os containers e o inventário",
+      "Imagem compartilhada tem o mesmo resultado para HTTP e SMTP",
+      "Paginação, deduplicação e seis filtros conferem com todas as contagens",
+      "Métricas de achados têm cardinalidade fixa e não incluem CVEs ou hashes",
+      "Incidentes compatíveis com os achados reais",
+      "E-mails locais dos achados reais recebidos",
+      "Relatórios preservados após restart da API",
+      "Quatro protocolos operacionais e oito configurações íntegras"
+    ]
+  },
+  "remaining_findings": [
+    {
+      "id": "CVE-2025-60876",
+      "package": "busybox",
+      "package_type": "apk",
+      "installed_version": "1.37.0-r31",
+      "severity": "medium",
+      "fixed_versions": [],
+      "fix_state": "unknown",
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+    },
+    {
+      "id": "CVE-2025-60876",
+      "package": "busybox-binsh",
+      "package_type": "apk",
+      "installed_version": "1.37.0-r31",
+      "severity": "medium",
+      "fixed_versions": [],
+      "fix_state": "unknown",
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+    },
+    {
+      "id": "CVE-2025-60876",
+      "package": "ssl_client",
+      "package_type": "apk",
+      "installed_version": "1.37.0-r31",
+      "severity": "medium",
+      "fixed_versions": [],
+      "fix_state": "unknown",
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-60876"
+    },
+    {
+      "id": "GHSA-mjcv-p78q-w5fw",
+      "package": "github.com/moby/sys/user",
+      "package_type": "go-module",
+      "installed_version": "v0.1.0",
+      "severity": "medium",
+      "fixed_versions": [
+        "0.4.1"
+      ],
+      "fix_state": "fixed",
+      "url": "https://github.com/advisories/GHSA-mjcv-p78q-w5fw"
+    },
+    {
+      "id": "GO-2026-5024",
+      "package": "golang.org/x/sys",
+      "package_type": "go-module",
+      "installed_version": "v0.1.0",
+      "severity": "low",
+      "fixed_versions": [
+        "0.44.0"
+      ],
+      "fix_state": "fixed",
+      "url": "https://go.dev/issue/78916"
+    }
+  ],
+  "historical_incidents_unreconciled": [
+    {
+      "fingerprint": "52164ae0d647d06d",
+      "started_at": "2026-10-29T13:20:56.828000Z",
+      "name": "VulnerabilidadeCritica"
+    }
+  ],
+  "limits": [
+    "Não foi realizada prova de exploração nem análise completa de alcançabilidade com govulncheck.",
+    "Um incidente crítico histórico de 29/10 permaneceu firing no SQLite após interrupção do monitoramento; evento atual resolvido e nenhum alerta PostgreSQL de vulnerabilidades ativo no Prometheus. Reconciliação do histórico pendente.",
+    "Achados médios/baixos PostgreSQL e achados das outras imagens permanecem para triagem.",
+    "QA visual desktop/mobile de vulnerabilidades permanece pendente; frontend não foi alterado."
+  ]
+}
