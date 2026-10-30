@@ -1904,3 +1904,66 @@ h1 {
 .integrity-events .table-scroll {
   max-height: 360px;
 }
+.vulnerability-panel,
+.vulnerability-incidents {
+  margin-bottom: 24px;
+}
+.vulnerability-panel h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.vulnerability-panel small {
+  display: block;
+  font-size: 9px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+.vulnerability-filters,
+.vulnerability-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 16px;
+  padding: 16px 21px;
+}
+.vulnerability-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  font-size: 11px;
+}
+.vulnerability-filters select {
+  background: var(--surface);
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  max-width: 100%;
+}
+.vulnerability-metadata {
+  padding: 0 21px 16px;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.vulnerability-metadata p {
+  margin: 5px 0;
+}
+.vulnerability-pagination {
+  justify-content: space-between;
+  align-items: center;
+  color: var(--muted);
+  font-size: 11px;
+}
+.vulnerability-pagination > div {
+  display: flex;
+  gap: 8px;
+}
+.vulnerability-findings code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  max-width: 350px;
+  display: inline-block;
+}

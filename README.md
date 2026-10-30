@@ -4,7 +4,7 @@ Plataforma de monitoramento para o trabalho final de Redes de Computadores e Int
 
 ## Estado da construção
 
-**Etapa 7: integridade das configurações.** O painel acompanha oito arquivos reais com SHA-256, referência aprovada e persistente, eventos, alertas e recuperação por e-mail. HTTP, PostgreSQL, DNS e SMTP também possuem comparação de tráfego com referência fixa. Login, sessões revogáveis e eventos de autenticação estão integrados. Vulnerabilidades dos serviços são a próxima entrega.
+**Etapa 8: vulnerabilidades conhecidas por serviço.** Syft/Grype analisam as imagens locais dos quatro serviços, com inventário periódico, relatórios com validade explícita, filtros, alertas e e-mail. O painel também acompanha oito configurações por SHA-256, tráfego com referência fixa, login e eventos de autenticação. Achados reais exigem triagem; não há atualização automática de imagens.
 
 ## Iniciar no Windows
 
@@ -15,9 +15,10 @@ Na pasta do projeto:
 ```powershell
 python scripts/configure.py
 docker compose up -d --build --wait
+python scripts/scan_vulnerabilities.py --background
 ```
 
-Ou execute `./scripts/start.ps1` no PowerShell. Se a política do computador impedir scripts, use os dois comandos acima, sem alterar a política.
+Ou execute `./scripts/start.ps1` no PowerShell. Se a política do computador impedir scripts, use os comandos acima, sem alterar a política.
 
 - Dashboard: **http://localhost:8000**
 - Caixa de e-mails de alerta: **http://localhost:8025**
@@ -36,6 +37,8 @@ O painel exige login. No primeiro acesso, use `ADMIN_USERNAME` e `ADMIN_PASSWORD
 O detector de tráfego aparece na aba Segurança. Na primeira execução, aguarde pelo menos dois minutos de coleta contínua em operação habitual para formar a referência de cada serviço. Em Laboratório, o teste de tráfego gera carga local por até 90 s com o LAB_TOKEN, sem enviar tráfego a destinos externos. Veja os limites no [runbook de tráfego](docs/runbook-trafego.md).
 
 Na mesma aba, **Integridade das configurações** acompanha oito arquivos reais. Confira os arquivos do repositório e aprove os primeiros hashes com sessão e LAB_TOKEN; o monitor não confia automaticamente no primeiro conteúdo observado. Alterações e arquivos ausentes geram alertas. O [runbook de integridade](docs/runbook-integridade.md) explica aprovação, estados, limites e a demonstração restaurável com `python scripts/verify_integrity.py`.
+
+**Vulnerabilidades conhecidas** mostra a análise das imagens em uso, feita por um processo local separado da API. O inventário das imagens é atualizado a cada 30 s e os scans são repetidos a cada 6 h. A primeira análise precisa baixar ferramentas/base e pode levar alguns minutos. Relatório ausente ou vencido aparece como **Sem análise atual**. Veja inicialização, limites e triagem no [runbook de vulnerabilidades](docs/runbook-vulnerabilidades.md).
 
 O SMTP de laboratório usa Python/aiosmtpd e uma fila SQLite em volume separado. Aceita mensagens somente para `aluno@aularedes.test`, mede aceitação e entrega separadamente e tenta novamente quando o receptor cai. O canal de alertas usa outro Mailpit, portanto continua funcionando durante uma falha no SMTP monitorado. Detalhes e limites em [runbook SMTP](docs/runbook-smtp.md).
 
@@ -66,6 +69,8 @@ docker compose down
 ```
 
 Os volumes preservam métricas (retenção de 7 dias), incidentes e e-mails. O histórico de incidentes mostra os últimos 100 registros. O modo de falha do serviço de demonstração volta ao normal ao reiniciar seu processo. Não use `down -v` se quiser preservar os dados.
+
+Para encerrar também o monitor local de vulnerabilidades, solicite `python scripts/scan_vulnerabilities.py --stop` antes do `docker compose down`. Ele não é um serviço do Windows; execute o script de inicialização novamente após reiniciar o computador.
 
 ## Desenvolvimento
 
@@ -144,6 +149,8 @@ Para demonstrar detecção de volume nos quatro protocolos:
 
 Execute os roteiros de demonstração sequencialmente, sem reconstruir ou interromper serviços enquanto um teste estiver em andamento.
 
+Para verificar vulnerabilidades reais, relatórios e notificações, use `.\.venv\Scripts\python.exe scripts/verify_vulnerabilities.py`. O modo `--exercise-outage` demonstra parada restaurável do coletor e recuperação, sem injetar achados nem instalar software vulnerável.
+
 - [Arquitetura e métricas](docs/arquitetura.md)
 - [Runbook HTTP e playbook de incidentes](docs/runbook-http.md)
 - [Runbook PostgreSQL](docs/runbook-postgres.md)
@@ -152,6 +159,7 @@ Execute os roteiros de demonstração sequencialmente, sem reconstruir ou interr
 - [Runbook de autenticação](docs/runbook-autenticacao.md)
 - [Runbook de tráfego e referências](docs/runbook-trafego.md)
 - [Runbook de integridade das configurações](docs/runbook-integridade.md)
+- [Runbook de vulnerabilidades por serviço](docs/runbook-vulnerabilidades.md)
 - [Roadmap dos 20 dias](docs/roadmap.md)
 - [Validação e limites](docs/validacao.md)
 

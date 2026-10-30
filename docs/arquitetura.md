@@ -104,6 +104,16 @@ O coletor independente lê no máximo 1 MiB por arquivo, calcula SHA-256 e compa
 
 Prometheus confirma mudança/ausência por 15 s, verificação indisponível por 30 s ou referência pendente por 2 min; Alertmanager envia incidentes e e-mails no canal independente. O painel mostra a revisão, o histórico e as recuperações. O [runbook de integridade](runbook-integridade.md) delimita cobertura e diferença entre arquivo em disco e configuração carregada pelo processo.
 
+## Fluxo de vulnerabilidades conhecidas
+
+O worker `scripts/scan_vulnerabilities.py` roda no host, usa Docker CLI para descobrir somente imagem/estado dos quatro serviços e exporta cada imagem única. Syft produz inventário de pacotes; Grype compara esse SBOM com a base pública. Containers de scanner com versões/digests fixados recebem apenas um arquivo somente leitura, sem socket Docker, `.env` ou volumes dos serviços. Catalogação/análise ficam sem rede; o atualizador da base tem rede e nenhum arquivo de imagem/SBOM montado. CPU, memória, prazos e saídas são limitados; comandos são terminados e recolhidos antes de liberar a trava do checkout.
+
+O identificador Docker pode ser o índice OCI; o digest da configuração é calculado do archive, sem extrair paths, e conferido com ambas as ferramentas. O relatório associa os dois identificadores e somente metadados de pacotes/avisos. HTTP e SMTP compartilham a imagem e recebem o mesmo conjunto de achados. Relatórios e manifesto são publicados com troca atômica em `.runtime/vulnerabilities`, montado somente leitura na API.
+
+Inventário a cada 30 s e scan por imagem nova/a cada 6 h, com retry de falhas em 5 min. A API lê a fonte a cada 5 s e reavalia validade: inventário até 120 s, leitura até 20 s, scan até 24 h, base até 120 h e identidade exata da imagem. Sem resultado válido, omite contagens/achados atuais, preserva metadados disponíveis e exporta análise indisponível, sem afetar sondas ou login.
+
+`GET /api/security/vulnerabilities` exige sessão e aceita filtros fixos/paginação. Métricas `security_vulnerability_*` têm labels fixos de serviço/severidade. Prometheus confirma achados críticos/altos em 30 s e análise indisponível em 2 min; incidentes/e-mails usam o canal existente. A resolução de um alerta sem análise atual não comprova correção. O [runbook de vulnerabilidades](runbook-vulnerabilidades.md) define interpretação, procedimentos e cobertura.
+
 ## Referências técnicas
 
 - [Prometheus: visão geral](https://prometheus.io/docs/introduction/overview/)

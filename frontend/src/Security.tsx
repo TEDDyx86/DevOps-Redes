@@ -5,6 +5,7 @@ import { IncidentsList, timeLabel } from "./components";
 import type { Incident } from "./types";
 import Traffic from "./Traffic";
 import Integrity from "./Integrity";
+import Vulnerabilities from "./Vulnerabilities";
 
 interface SecurityData {
   generated_at: number;
@@ -78,6 +79,7 @@ export default function Security({
       data.failures_recent.account >= data.account_limit);
   return (
     <>
+      <Vulnerabilities refresh={refresh} incidents={incidents} />
       <Integrity refresh={refresh} incidents={incidents} />
       <Traffic refresh={refresh} incidents={incidents} />
       <h2 className="security-section-title">Acesso ao painel</h2>
@@ -196,9 +198,6 @@ export default function Security({
           compact
         />
       </section>
-      <p className="security-note muted">
-        O monitoramento de vulnerabilidades dos serviços será integrado na próxima etapa.
-      </p>
     </>
   );
 }

@@ -1,4 +1,30 @@
 groups:
+  - name: vulnerabilidades-laboratorio
+    rules:
+      - alert: VulnerabilidadeCritica
+        expr: security_vulnerability_findings{job="platform",severity="critical"} > 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Vulnerabilidade crítica na imagem: {{ $labels.service }}'
+          description: A análise válida identificou ao menos um achado crítico na imagem do serviço. Revise pacote, versão e correção na aba Segurança. Uma resolução do alerta sem análise atual não comprova correção.
+      - alert: VulnerabilidadeAlta
+        expr: (security_vulnerability_findings{job="platform",severity="high"} > 0) and on(service) (security_vulnerability_findings{job="platform",severity="critical"} == 0)
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Vulnerabilidade alta na imagem: {{ $labels.service }}'
+          description: A análise válida identificou achados altos sem achados críticos na imagem do serviço. Confira aplicabilidade e correções. Uma resolução do alerta sem análise atual não comprova correção.
+      - alert: VulnerabilidadeAnaliseIndisponivel
+        expr: security_vulnerability_analysis_success{job="platform"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Análise de vulnerabilidades indisponível: {{ $labels.service }}'
+          description: Não há análise atual válida para a imagem observada há pelo menos 2 minutos. Verifique o processo local, rede, inventário, validade da base e relatório. Não significa ausência de vulnerabilidades.
   - name: configuracoes-laboratorio
     rules:
       - alert: ConfiguracaoAlterada

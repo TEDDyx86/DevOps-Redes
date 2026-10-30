@@ -28,6 +28,7 @@ def configure(root: Path):
             stream.write("\n" + "\n".join(additions) + "\n")
     secret_dir = root / ".runtime" / "secrets"
     secret_dir.mkdir(parents=True, exist_ok=True)
+    (root / ".runtime" / "vulnerabilities").mkdir(parents=True, exist_ok=True)
     (secret_dir / "webhook-token").write_text(values["WEBHOOK_TOKEN"], encoding="utf-8")
     hash_path = secret_dir / "admin-password-hash"
     existing = hash_path.read_text(encoding="utf-8").strip() if hash_path.exists() else ""

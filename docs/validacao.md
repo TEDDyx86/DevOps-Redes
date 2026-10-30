@@ -98,7 +98,7 @@ Há um aviso de depreciação da biblioteca Starlette sobre a integração de te
 
 ## Requisitos ainda em construção
 
-CPU/memória/I/O, pools e consultas lentas, tentativas de autenticação nos serviços monitorados, vulnerabilidades conhecidas e relatório ABNT. Autenticação da interface, falhas repetidas no painel, comparação de volume dos quatro serviços e integridade dos oito arquivos listados já estão implementadas.
+CPU/memória/I/O, pools e consultas lentas, tentativas de autenticação nos serviços monitorados e relatório ABNT. Autenticação da interface, falhas repetidas no painel, comparação de volume, integridade dos oito arquivos listados e análise de vulnerabilidades das imagens dos quatro serviços já estão implementadas. Os achados reais exigem triagem e eventual correção; detecção não significa remediação.
 
 ## Etapa de integridade: 29/10/2026
 
@@ -111,3 +111,32 @@ CPU/memória/I/O, pools e consultas lentas, tentativas de autenticação nos ser
 - Navegação real confirmou revisão com hash completo, botão desabilitado sem token e aprovação idempotente com feedback de sucesso. Layout desktop/celular sem transbordamento horizontal da página; a tabela tem rolagem interna. Os overrides solicitados foram 1440×1000 e 390×844; com a escala atual do navegador, as larguras úteis medidas foram **1331 e 351 px**, iguais às larguras de rolagem. Console sem erros na conferência final.
 - Evidências: `docs/evidencias/integrity-desktop.jpg` e `integrity-mobile.jpg`. Relatório sem credenciais: `tmp/integrity-e2e-result.json`. Todos os oito arquivos retornaram à referência e os quatro serviços ficaram operacionais.
 - A tentativa de executar toda a suíte na imagem de produção não foi usada como verificação final: ela não inclui `scripts.configure`, necessário para um teste de bootstrap. Também ocorreu uma expiração do fixture temporal DNS sob carga, que passou na execução isolada. A suíte completa foi validada no ambiente de desenvolvimento; a cobertura POSIX foi executada separadamente no container.
+
+## Etapa de vulnerabilidades: 29/10/2026
+
+- **95 testes backend passaram**, com um caso POSIX pulado no Windows. Os 28 testes novos cobrem normalização, inventário real obrigatório, deduplicação, severidade desconhecida, URL insegura, datas inválidas/antigas, imagem divergente, contagens inconsistentes, falhas de scanner, filtros, métricas sem falso zero, trava, publicação atômica, retry e persistência de falha após restart.
+- **16 testes frontend passaram** e o build TypeScript/Vite foi concluído na imagem. Os três testes novos verificam validade independente de inventário/análise/base e preservação de metadados quando contagens expiram. A conferência visual desktop/mobile desta etapa ficou pendente: a ferramenta de Computer Use interrompeu a execução por não conseguir confirmar a URL do navegador. Não foram produzidas novas capturas nem declarada navegação real concluída.
+- `promtool` validou **23 regras**. Os três cenários isolados em `backend/tests/fixtures/vulnerability-rules.test.yml` passaram: confirmação em 30 s e prioridade crítico/alto, confirmação em 2 min de análise indisponível, e análise válida sem achados. Nenhuma série sintética foi publicada no laboratório.
+- Syft 1.55.0 e Grype 0.121.0, com digests fixados, analisaram imagens locais reais. O índice OCI observado no Docker foi associado à exportação; o digest de configuração foi calculado dos bytes do archive e conferido com as duas ferramentas. O formato real do SBOM usa `source.metadata`, enquanto o relatório Grype usa `source.target`; ambos foram validados.
+
+| Imagem/serviço analisado | Pacotes | Críticos | Altos | Médios | Baixos | Desprezíveis | Não classificados |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| HTTP/SMTP (mesma imagem) | 127 | 0 | 55 | 50 | 10 | 46 | 0 |
+| PostgreSQL | 50 | 3 | 32 | 26 | 2 | 0 | 1 |
+| DNS | 202 | 0 | 0 | 0 | 0 | 0 | 3 |
+
+Essas contagens são a fotografia da execução registrada, não uma garantia de explorabilidade ou estado permanente. As contagens por serviço da imagem compartilhada não devem ser somadas como achados distintos de duas imagens.
+
+- A demonstração real confirmou inicialmente nove verificações: login, filtros/ausência de execução pela API, quatro análises atuais, IDs conferidos independentemente com Docker, resultado compartilhado, paginação/deduplicação/seis severidades, cardinalidade fixa, incidentes e e-mails aplicáveis aos achados reais. A fase de interrupção do coletor foi interrompida por timeouts simultâneos de API, Prometheus e Mailpit, seguidos de falha do engine Docker; não foi contada como ciclo completo.
+- A revisão independente encontrou dois problemas no worker: saída limitada somente após término e exportação Docker podendo sobreviver à liberação da trava. Reproduzidos antes das correções. Agora stdout tem limite durante a leitura de 32 MiB, stderr de 64 KiB, processos são terminados/recolhidos e novos comandos são bloqueados após shutdown. A thread é aguardada integralmente antes de liberar a trava. Nove testes de worker passaram e o revisor confirmou os dois ajustes sem novo bloqueante.
+- O hash revisado de `infra/alerts.yml` foi aprovado explicitamente após validar as 23 regras; as demais referências foram preservadas. Arquivos raw/exportações não são servidos pela API; os relatórios normalizados ficam em `.runtime/vulnerabilities`, ignorado pelo Git e montado somente leitura.
+
+## Retomada e conclusão funcional: 30/10/2026
+
+- Docker Desktop voltou a responder com engine 29.9.2. A stack foi iniciada com os volumes existentes. Os **35 testes de vulnerabilidades/integridade no Linux passaram**, incluindo os casos POSIX; os três cenários isolados de regras passaram novamente.
+- A primeira tentativa após iniciar a stack encontrou inventário temporariamente indisponível entre páginas. O painel omitiu corretamente os achados atuais; o roteiro foi ajustado para exigir a mesma imagem, data de análise/base e contagens em todas as respostas. Se uma análise expira ou é substituída, repete a leitura consistente. Três regressões foram observadas falhando antes da implementação e passaram após o ajuste.
+- A suíte completa final apresentou **98 testes backend aprovados e um caso POSIX pulado no Windows**, além dos **16 testes frontend já aprovados** e do build TypeScript/Vite concluído. Não houve mudança na lógica de produção do monitor durante o ajuste do roteiro.
+- **18 verificações integradas passaram** em `scripts/verify_vulnerabilities.py --exercise-outage`: dados reais dos quatro serviços, IDs conferidos com Docker, paginação/deduplicação/filtros, métricas fixas, incidentes/e-mails dos achados, parada do worker, contagens ocultas após expiração, métricas omitidas sem falso zero, quatro incidentes e quatro e-mails de análise indisponível, recuperação das mesmas contagens, quatro resoluções e quatro e-mails de recuperação, persistência após restart da API, quatro protocolos operacionais e oito configurações íntegras.
+- A reanálise confirmou as contagens da tabela anterior. Permanecem **3 achados críticos e 32 altos na imagem PostgreSQL**, **55 altos na imagem compartilhada HTTP/SMTP** e **3 não classificados no DNS**, sujeitos a triagem de aplicabilidade. As 1.000 linhas de `lab_items` foram confirmadas após a recuperação. Estado operacional dos protocolos não implica ausência de risco na imagem.
+- Inspeção do container confirmou mount dos relatórios com `RW=false` e ausência de socket Docker na API. Segredos, cache de execução e relatório de teste continuam ignorados pelo Git. O resultado completo sem credenciais está em `tmp/vulnerabilities-e2e-result.json`.
+- A automação visual continuou indisponível: as tentativas de conectar ao Docker Desktop e à aba existente do painel terminaram com timeout e reinicialização do helper. A navegação real e as capturas desktop/mobile desta etapa permanecem pendentes; as evidências das etapas anteriores não foram reutilizadas como prova da interface nova.
