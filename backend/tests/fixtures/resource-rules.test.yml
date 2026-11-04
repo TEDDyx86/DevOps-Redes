@@ -1,0 +1,82 @@
+rule_files:
+  - /etc/prometheus/alerts.yml
+evaluation_interval: 1s
+tests:
+  - interval: 1s
+    input_series:
+      - series: 'service_resource_cpu_cores{job="platform",service="web-demo"}'
+        values: '0x5 1x60 0x70'
+      - series: 'service_resource_budget_cpu_cores{job="platform",service="web-demo"}'
+        values: '0.8x140'
+      - series: 'service_resource_metric_available{job="platform",service="web-demo",metric="cpu_cores"}'
+        values: '1x140'
+    alert_rule_test:
+      - eval_time: 20s
+        alertname: RecursoCPUElevada
+        exp_alerts: []
+      - eval_time: 45s
+        alertname: RecursoCPUElevada
+        exp_alerts:
+          - exp_labels: {service: web-demo, severity: warning}
+            exp_annotations:
+              summary: 'Uso elevado de CPU: web-demo'
+              description: 'O contêiner excede o orçamento de 0,8 núcleo por 30 s. Um núcleo equivale a 1,0; não é percentual do host. Investigue a carga. Resolução sem coleta atual não comprova normalização.'
+      - eval_time: 80s
+        alertname: RecursoCPUElevada
+        exp_alerts: []
+  - interval: 1s
+    input_series:
+      - series: 'service_resource_monitor_enabled'
+        values: '1x80'
+      - series: 'service_resource_collection_success{job="platform",service="postgres"}'
+        values: '0x80'
+      - series: 'service_resource_cpu_cores{job="platform",service="postgres"}'
+        values: '1x80'
+      - series: 'service_resource_budget_cpu_cores{job="platform",service="postgres"}'
+        values: '0.8x80'
+      - series: 'service_resource_metric_available{job="platform",service="postgres",metric="cpu_cores"}'
+        values: '0x80'
+    alert_rule_test:
+      - eval_time: 45s
+        alertname: RecursoCPUElevada
+        exp_alerts: []
+      - eval_time: 45s
+        alertname: RecursosColetaIndisponivel
+        exp_alerts:
+          - exp_labels: {job: platform, service: postgres, severity: warning}
+            exp_annotations:
+              summary: 'Coleta de recursos indisponível: postgres'
+              description: 'Sem snapshot válido de recursos por 30 s. Confira o coletor local e o Docker. CPU, memória e I/O estão desconhecidos; as sondas dos protocolos são independentes.'
+  - interval: 1s
+    input_series:
+      - series: 'service_resource_memory_bytes{job="platform",service="postgres"}'
+        values: '314572800x80'
+      - series: 'service_resource_budget_memory_bytes{job="platform",service="postgres"}'
+        values: '268435456x80'
+      - series: 'service_resource_metric_available{job="platform",service="postgres",metric="memory_bytes"}'
+        values: '1x80'
+      - series: 'service_resource_read_bps{job="platform",service="postgres"}'
+        values: '6291456x80'
+      - series: 'service_resource_write_bps{job="platform",service="postgres"}'
+        values: '6291456x80'
+      - series: 'service_resource_budget_io_bps{job="platform",service="postgres"}'
+        values: '10485760x80'
+      - series: 'service_resource_metric_available{job="platform",service="postgres",metric="read_bps"}'
+        values: '1x80'
+      - series: 'service_resource_metric_available{job="platform",service="postgres",metric="write_bps"}'
+        values: '1x80'
+    alert_rule_test:
+      - eval_time: 45s
+        alertname: RecursoMemoriaElevada
+        exp_alerts:
+          - exp_labels: {service: postgres, severity: warning}
+            exp_annotations:
+              summary: 'Memória acima do orçamento: postgres'
+              description: 'Working set acima do orçamento didático por 30 s: 128 MiB, ou 256 MiB para PostgreSQL. Não representa o limite compartilhado da VM. Resolução sem coleta atual não comprova normalização.'
+      - eval_time: 45s
+        alertname: RecursoIOElevado
+        exp_alerts:
+          - exp_labels: {service: postgres, severity: warning}
+            exp_annotations:
+              summary: 'Movimentação de blocos elevada: postgres'
+              description: 'Leitura mais gravação excedem 10 MiB/s por 30 s. É movimentação contabilizada pelo Engine, não ocupação nem latência de disco. Resolução sem coleta atual não comprova normalização.'

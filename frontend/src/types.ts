@@ -7,6 +7,7 @@ export type Page =
   | "postgres"
   | "dns"
   | "smtp"
+  | "resources"
   | "security"
   | "incidents"
   | "lab";
@@ -47,6 +48,10 @@ export interface ChartSample {
   qps?: number | null;
   messages_per_minute?: number | null;
   latency_ms: number | null;
+  cpu_cores?: number | null;
+  memory_mib?: number | null;
+  read_kibps?: number | null;
+  write_kibps?: number | null;
 }
 
 export interface SMTPOverview {

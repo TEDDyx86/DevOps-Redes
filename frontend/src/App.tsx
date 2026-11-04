@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Activity,
+  Cpu,
   ArrowRight,
   ArrowUpRight,
   Bell,
@@ -34,6 +35,7 @@ import PostgresView from "./Postgres";
 import DNSView from "./DNS";
 import SMTPView from "./SMTP";
 import SecurityView from "./Security";
+import ResourcesView from "./Resources";
 import {
   combinedStatus,
   currentService,
@@ -59,11 +61,16 @@ const navigation: { id: Page; label: string; icon: typeof Activity }[] = [
   { id: "postgres", label: "PostgreSQL", icon: Database },
   { id: "dns", label: "DNS", icon: Globe2 },
   { id: "smtp", label: "SMTP", icon: Mail },
+  { id: "resources", label: "Recursos", icon: Cpu },
   { id: "security", label: "Segurança", icon: ShieldCheck },
   { id: "incidents", label: "Incidentes", icon: Bell },
   { id: "lab", label: "Laboratório", icon: FlaskConical },
 ];
 const pageTitles: Record<Page, { title: string; subtitle: string }> = {
+  resources: {
+    title: "Recursos",
+    subtitle: "Como cada serviço utiliza CPU, memória e armazenamento.",
+  },
   overview: {
     title: "Visão geral",
     subtitle: "O que está acontecendo com seus serviços, agora.",
@@ -512,7 +519,9 @@ export default function App({
               estar desatualizado.
             </div>
           )}
-          {page === "security" ? (
+          {page === "resources" ? (
+            <ResourcesView window={window} refresh={refresh} incidents={incidents}/>
+          ) : page === "security" ? (
             <SecurityView incidents={incidents} refresh={refresh} />
           ) : page === "smtp" ? (
             <SMTPView

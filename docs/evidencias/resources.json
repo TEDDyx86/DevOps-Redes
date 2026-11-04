@@ -1,0 +1,275 @@
+{
+  "stage": "Recursos: CPU, memória e I/O",
+  "completed_at": "2026-11-04T14:52:14.165069+00:00",
+  "tests": {
+    "backend_passed": 162,
+    "backend_skipped": 1,
+    "frontend_passed": 20,
+    "build": "TypeScript/Vite: passou",
+    "promtool_rules": 27,
+    "promtool_scenarios": 3
+  },
+  "integration": {
+    "passed": true,
+    "checks": [
+      "Recursos exigem login e filtros são fixos",
+      "Quatro fontes atuais com CPU, RAM e I/O medidos",
+      "IDs e início das quatro execuções conferem com Docker",
+      "Histórico Prometheus possui amostras CPU e lacunas explícitas",
+      "Métricas têm cardinalidade fixa e não exportam identidades/caminhos como labels",
+      "CPU real do HTTP excedeu 0,8 núcleo",
+      "Incidente de CPU persistido após 30 s",
+      "E-mail local de CPU elevada recebido",
+      "Quatro protocolos responderam durante a carga CPU limitada",
+      "CPU voltou ao orçamento após encerramento do processo temporário",
+      "Incidente de CPU resolvido e e-mail de recuperação recebido",
+      "Coletor parado: medições vencidas ficam desconhecidas nos quatro serviços",
+      "Coleta ausente omite gauges de consumo em vez de publicar zero",
+      "Histórico interrompe a linha durante a perda da coleta",
+      "Quatro avisos de coleta e e-mails confirmados",
+      "Coletor recuperado com novas taxas e memória reais",
+      "Quatro avisos de coleta resolvidos com e-mails de recuperação",
+      "Snapshot e histórico permanecem utilizáveis após restart da API",
+      "Quatro protocolos e oito configurações operacionais",
+      "As 1.000 linhas PostgreSQL foram preservadas"
+    ],
+    "completed_at": "2026-11-04T14:26:41.124783+00:00",
+    "outage_exercised": true,
+    "http_peak_cpu_cores": 1.0024485746643574
+  },
+  "rapid_restart": {
+    "passed": true,
+    "elapsed_seconds": 9.008440017700195,
+    "checked_at": 1793803353.950874,
+    "all_sources_current": true,
+    "observed_after_background_return": true
+  },
+  "ui": {
+    "checked_at": "2026-11-04T14:48:46.762Z",
+    "desktop": {
+      "clientWidth": 1425,
+      "height": 1000,
+      "scrollWidth": 1425,
+      "width": 1439
+    },
+    "mobile": {
+      "clientWidth": 376,
+      "height": 844,
+      "scrollWidth": 376,
+      "width": 390
+    },
+    "mobile_table": {
+      "parentWidth": 293,
+      "scrollLeft": 311.7756652832031,
+      "scrollWidth": 604,
+      "width": 604
+    },
+    "filters": {
+      "services": [
+        "web-demo",
+        "dns",
+        "postgres"
+      ],
+      "windows": [
+        "1h",
+        "15m"
+      ],
+      "history_nonempty": true
+    },
+    "rows": 4,
+    "observed_unknown_during_outage": true,
+    "warming_screenshot": "resources-warming.png",
+    "console": [],
+    "screenshots": [
+      "resources-desktop.png",
+      "resources-mobile.png",
+      "resources-mobile-charts.png",
+      "resources-warming.png"
+    ]
+  },
+  "services": [
+    {
+      "id": "web-demo",
+      "name": "HTTP",
+      "status": "ok",
+      "available": true,
+      "reason": null,
+      "observed_at": 1793803926.941256,
+      "container_id": "40243da368692a3426b897c9048d14354bd709f0c826b8efc8da0cf2d72c31b7",
+      "started_at": "2026-11-04T13:28:57.304039948Z",
+      "values": {
+        "cpu_cores": 0.0033642054760523172,
+        "memory_bytes": 57786368,
+        "memory_total_bytes": 64323584,
+        "engine_memory_limit_bytes": 8162787328,
+        "read_bps": 0.0,
+        "write_bps": 0.0
+      },
+      "budgets": {
+        "cpu_cores": 0.8,
+        "memory_bytes": 134217728,
+        "io_bps": 10485760
+      }
+    },
+    {
+      "id": "postgres",
+      "name": "PostgreSQL",
+      "status": "ok",
+      "available": true,
+      "reason": null,
+      "observed_at": 1793803925.940396,
+      "container_id": "f0995381427dd7817424363da62a5ca52ce98cd14564670a60d8ecd2a2744e1b",
+      "started_at": "2026-11-04T13:28:57.461345436Z",
+      "values": {
+        "cpu_cores": 0.01599006984803135,
+        "memory_bytes": 46563328,
+        "memory_total_bytes": 70041600,
+        "engine_memory_limit_bytes": 8162787328,
+        "read_bps": 0.0,
+        "write_bps": 5772.90385424241
+      },
+      "budgets": {
+        "cpu_cores": 0.8,
+        "memory_bytes": 268435456,
+        "io_bps": 10485760
+      }
+    },
+    {
+      "id": "dns",
+      "name": "DNS",
+      "status": "ok",
+      "available": true,
+      "reason": null,
+      "observed_at": 1793803925.939805,
+      "container_id": "2d94662c01e24ae353cae650640033c8b2ababf2d1e458dfc4960f5ad341c8ed",
+      "started_at": "2026-11-04T13:28:57.272214569Z",
+      "values": {
+        "cpu_cores": 0.0009280264994330412,
+        "memory_bytes": 28180480,
+        "memory_total_bytes": 106397696,
+        "engine_memory_limit_bytes": 8162787328,
+        "read_bps": 0.0,
+        "write_bps": 0.0
+      },
+      "budgets": {
+        "cpu_cores": 0.8,
+        "memory_bytes": 134217728,
+        "io_bps": 10485760
+      }
+    },
+    {
+      "id": "smtp",
+      "name": "SMTP",
+      "status": "ok",
+      "available": true,
+      "reason": null,
+      "observed_at": 1793803925.940877,
+      "container_id": "4ed05a02781d1b8fff3a39fd5ce1dbf71c9c65e6df4057b2c47e7ed6df153a05",
+      "started_at": "2026-11-04T13:28:57.374143066Z",
+      "values": {
+        "cpu_cores": 0.03501888780870493,
+        "memory_bytes": 52420608,
+        "memory_total_bytes": 57200640,
+        "engine_memory_limit_bytes": 8162787328,
+        "read_bps": 0.0,
+        "write_bps": 0.0
+      },
+      "budgets": {
+        "cpu_cores": 0.8,
+        "memory_bytes": 134217728,
+        "io_bps": 10485760
+      }
+    }
+  ],
+  "protocols": {
+    "/api/overview": "ok",
+    "/api/postgres": "ok",
+    "/api/dns": "ok",
+    "/api/smtp": "ok"
+  },
+  "integrity": [
+    {
+      "id": "http-runtime",
+      "status": "ok",
+      "observed_sha256": "e7c6be7fea2a6c3004229b25bd5938bf54a85c676e2295449c75264652634303",
+      "approved_sha256": "e7c6be7fea2a6c3004229b25bd5938bf54a85c676e2295449c75264652634303"
+    },
+    {
+      "id": "postgres-runtime",
+      "status": "ok",
+      "observed_sha256": "54392402ea506015d46a9a40354837ac77a8d8cc07496fc0730fa7d19cbd27de",
+      "approved_sha256": "54392402ea506015d46a9a40354837ac77a8d8cc07496fc0730fa7d19cbd27de"
+    },
+    {
+      "id": "dns-corefile",
+      "status": "ok",
+      "observed_sha256": "92f68c69e367516f6fb0c8c125cfb9889a31e203dafb8ecf0ec1e59980d5f77c",
+      "approved_sha256": "92f68c69e367516f6fb0c8c125cfb9889a31e203dafb8ecf0ec1e59980d5f77c"
+    },
+    {
+      "id": "dns-zone",
+      "status": "ok",
+      "observed_sha256": "126f90a019ce01aab8c8f4719780540aead92610c94ad31eccb9c2212d6e1903",
+      "approved_sha256": "126f90a019ce01aab8c8f4719780540aead92610c94ad31eccb9c2212d6e1903"
+    },
+    {
+      "id": "smtp-runtime",
+      "status": "ok",
+      "observed_sha256": "b56c4fac0379acb0665b7485630eb1088d34dcf5801aab6cd870c66ba6a41591",
+      "approved_sha256": "b56c4fac0379acb0665b7485630eb1088d34dcf5801aab6cd870c66ba6a41591"
+    },
+    {
+      "id": "prometheus",
+      "status": "ok",
+      "observed_sha256": "74797f1753ffefa02b3e51f7e71586433f45e5539e742b1c30450237aa4586c5",
+      "approved_sha256": "74797f1753ffefa02b3e51f7e71586433f45e5539e742b1c30450237aa4586c5"
+    },
+    {
+      "id": "alert-rules",
+      "status": "ok",
+      "observed_sha256": "af32a6bb585f22c70e9c2ea46d549735de63d934ef71fe4f4f95c8f6b1aac9c8",
+      "approved_sha256": "af32a6bb585f22c70e9c2ea46d549735de63d934ef71fe4f4f95c8f6b1aac9c8"
+    },
+    {
+      "id": "alertmanager",
+      "status": "ok",
+      "observed_sha256": "d95da36c788b4deacfa1eb3c585ee02b5a163ce8a0ef77fabd083bf32931aa70",
+      "approved_sha256": "d95da36c788b4deacfa1eb3c585ee02b5a163ce8a0ef77fabd083bf32931aa70"
+    }
+  ],
+  "monitored_images": {
+    "web-demo": {
+      "container_id": "40243da368692a3426b897c9048d14354bd709f0c826b8efc8da0cf2d72c31b7",
+      "image_id": "sha256:273e03ead80fa8e26b81e9e2de79ab9a3e5c8469d4785320ad531647bf8bb61c",
+      "unchanged": true
+    },
+    "postgres": {
+      "container_id": "f0995381427dd7817424363da62a5ca52ce98cd14564670a60d8ecd2a2744e1b",
+      "image_id": "sha256:aa939f67eff969ddd02b34009cbf6bf30c53b87b12c92cc7bf52b23fd6c06717",
+      "unchanged": true
+    },
+    "dns": {
+      "container_id": "2d94662c01e24ae353cae650640033c8b2ababf2d1e458dfc4960f5ad341c8ed",
+      "image_id": "sha256:0a9d8c8ddf34347eb59aad9a8784f0710de88d6d112726d11d271f9bc6daca26",
+      "unchanged": true
+    },
+    "smtp": {
+      "container_id": "4ed05a02781d1b8fff3a39fd5ce1dbf71c9c65e6df4057b2c47e7ed6df153a05",
+      "image_id": "sha256:273e03ead80fa8e26b81e9e2de79ab9a3e5c8469d4785320ad531647bf8bb61c",
+      "unchanged": true
+    }
+  },
+  "sql_rows_preserved": 1000,
+  "api_resource_mount_readonly": true,
+  "api_has_no_docker_socket": true,
+  "active_resource_alerts": [],
+  "temporary_cpu_stop_files_remaining": 0,
+  "review": "Revisão independente concluída; achados corrigidos e encerrados.",
+  "limits": [
+    "CPU em núcleos, não percentual do host",
+    "RAM desconta cache inativo",
+    "I/O de blocos não mede ocupação, latência ou IOPS ausentes no Engine",
+    "Snapshot depende da confiança no host local",
+    "Orçamentos não impõem limites aos serviços"
+  ]
+}

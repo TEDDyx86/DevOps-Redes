@@ -4,7 +4,9 @@ Plataforma de monitoramento para o trabalho final de Redes de Computadores e Int
 
 ## Estado da construção
 
-**Etapa 8: vulnerabilidades conhecidas por serviço.** Syft/Grype analisam as imagens locais dos quatro serviços, com inventário periódico, relatórios com validade explícita, filtros, alertas e e-mail. O painel também acompanha oito configurações por SHA-256, tráfego com referência fixa, login e eventos de autenticação. Achados reais exigem triagem; não há atualização automática de imagens.
+**Etapa 9: recursos dos quatro serviços.** A página Recursos acompanha CPU em núcleos, memória em MiB e leitura/gravação de blocos em KiB/s, com histórico, alertas e e-mails. Um coletor local consulta o Docker; a API recebe somente um snapshot em montagem de leitura. Dados ausentes aparecem como desconhecidos. [Inicialização, unidades e demonstração](docs/runbook-recursos.md).
+
+Syft/Grype analisam as imagens locais dos quatro serviços, com relatórios com validade explícita, filtros, alertas e e-mail. O painel também acompanha oito configurações por SHA-256, tráfego com referência fixa, login e eventos de autenticação. Achados reais exigem triagem; não há atualização automática de imagens.
 
 **Atualização de 30/10:** o PostgreSQL mantém a versão 17.11 e usa uma imagem derivada com gosu recompilado em Go 1.27.3. A análise passou de 3 críticos/32 altos para zero críticos/altos, com 50 pacotes catalogados e dados preservados. Cinco achados médios/baixos permanecem para triagem. Procedimento, aplicabilidade dos avisos e reversão no [runbook da atualização PostgreSQL](docs/runbook-postgres-remediation.md).
 
@@ -20,6 +22,7 @@ Na pasta do projeto:
 python scripts/configure.py
 docker compose up -d --build --wait
 python scripts/scan_vulnerabilities.py --background
+python scripts/collect_resources.py --background
 ```
 
 Ou execute `./scripts/start.ps1` no PowerShell. Se a política do computador impedir scripts, use os comandos acima, sem alterar a política.
@@ -34,6 +37,7 @@ Ou execute `./scripts/start.ps1` no PowerShell. Se a política do computador imp
 - Dashboard PostgreSQL: http://localhost:8000/#postgres
 - Dashboard DNS: http://localhost:8000/#dns
 - Dashboard SMTP: http://localhost:8000/#smtp
+- Recursos dos quatro serviços: http://localhost:8000/#resources
 - Eventos de autenticação: http://localhost:8000/#security
 
 O painel exige login. No primeiro acesso, use `ADMIN_USERNAME` e `ADMIN_PASSWORD` do arquivo local `.env`, gerados por `scripts/configure.py`. Ao atualizar uma instalação existente, execute novamente esse script antes de reconstruir a stack. Ele preserva os segredos anteriores. O botão de sair revoga a sessão; o [runbook de autenticação](docs/runbook-autenticacao.md) detalha limites e demonstração.
@@ -74,7 +78,7 @@ docker compose down
 
 Os volumes preservam métricas (retenção de 7 dias), incidentes e e-mails. O histórico de incidentes mostra os últimos 100 registros. O modo de falha do serviço de demonstração volta ao normal ao reiniciar seu processo. Não use `down -v` se quiser preservar os dados.
 
-Para encerrar também o monitor local de vulnerabilidades, solicite `python scripts/scan_vulnerabilities.py --stop` antes do `docker compose down`. Ele não é um serviço do Windows; execute o script de inicialização novamente após reiniciar o computador.
+Antes do `docker compose down`, solicite `python scripts/scan_vulnerabilities.py --stop` e `python scripts/collect_resources.py --stop`. Os dois coletores locais não são serviços do Windows; execute o script de inicialização novamente após reiniciar o computador. O coletor de recursos prepara um ambiente Python próprio em `.runtime/resource-worker-venv`, com dependências fixadas por hash; a primeira instalação requer internet.
 
 ## Desenvolvimento
 
@@ -153,6 +157,8 @@ Para demonstrar detecção de volume nos quatro protocolos:
 
 Execute os roteiros de demonstração sequencialmente, sem reconstruir ou interromper serviços enquanto um teste estiver em andamento.
 
+Para demonstrar CPU real, incidente/e-mail e recuperação, execute `.\.venv\Scripts\python.exe scripts/verify_resources.py`. O modo `--exercise-outage` também interrompe e retoma o coletor local, verifica estados desconhecidos e os quatro alertas de coleta. A carga CPU tem limite próprio de 75 s e é cancelada ao final; não apaga volumes.
+
 Para verificar vulnerabilidades reais, relatórios e notificações, use `.\.venv\Scripts\python.exe scripts/verify_vulnerabilities.py`. O modo `--exercise-outage` demonstra parada restaurável do coletor e recuperação, sem injetar achados nem instalar software vulnerável.
 
 - [Arquitetura e métricas](docs/arquitetura.md)
@@ -166,6 +172,7 @@ Para verificar vulnerabilidades reais, relatórios e notificações, use `.\.ven
 - [Runbook de tráfego e referências](docs/runbook-trafego.md)
 - [Runbook de integridade das configurações](docs/runbook-integridade.md)
 - [Runbook de vulnerabilidades por serviço](docs/runbook-vulnerabilidades.md)
+- [Runbook de CPU, memória e I/O](docs/runbook-recursos.md)
 - [Roadmap dos 20 dias](docs/roadmap.md)
 - [Validação e limites](docs/validacao.md)
 

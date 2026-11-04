@@ -58,4 +58,4 @@ O roteiro verifica métricas, privilégios, parada real, independência do HTTP,
 
 ## Limites
 
-Ainda não inclui métricas de CPU, memória e disco, pools de conexão nem contagem de cada consulta lenta. Essas medições exigem instrumentação complementar. Não confundir SQL respondendo com aplicação saudável em todas as consultas.
+A página [Recursos](http://localhost:8000/#resources) complementa o monitor SQL com CPU, memória e I/O de blocos do contêiner. [Unidades e limites](runbook-recursos.md). Latência de disco, espaço livre do host, pools de conexão e contagem de cada consulta lenta ainda exigem instrumentação complementar. Não confundir SQL respondendo com aplicação saudável em todas as consultas.

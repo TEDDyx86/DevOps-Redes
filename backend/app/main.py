@@ -31,6 +31,8 @@ from .traffic import TrafficMonitor
 from .traffic_load import TrafficLoad
 from .integrity import IntegrityMonitor
 from .vulnerabilities import VulnerabilityMonitor
+from .resources import ResourceMonitor
+from .resource_metrics import overview as resource_overview
 
 
 class Alert(BaseModel):
@@ -87,6 +89,7 @@ def create_app(settings: Settings | None = None, transport=None):
         app.state.traffic_control_lock = asyncio.Lock()
         app.state.integrity = IntegrityMonitor(settings.database_path.with_name("integrity.sqlite"),settings.integrity_root)
         app.state.vulnerabilities = VulnerabilityMonitor(settings.vulnerability_root)
+        app.state.resources = ResourceMonitor(settings.resource_root)
         app.state.probe = Probe()
         app.state.postgres_probe = PostgresProbe()
         app.state.dns_probe = DNSProbe()
@@ -104,11 +107,12 @@ def create_app(settings: Settings | None = None, transport=None):
             traffic_task = asyncio.create_task(app.state.traffic.run(app.state.prometheus)) if settings.enable_probe else None
             integrity_task = asyncio.create_task(app.state.integrity.run()) if settings.integrity_root is not None else None
             vulnerability_task = asyncio.create_task(app.state.vulnerabilities.run()) if settings.vulnerability_root is not None else None
+            resource_task = asyncio.create_task(app.state.resources.run()) if settings.resource_root is not None else None
             try:
                 yield
             finally:
                 await app.state.traffic_load.stop()
-                tasks = [item for item in [task, postgres_task, workload_task, dns_task, dns_workload_task, smtp_task, smtp_workload_task, traffic_task, integrity_task, vulnerability_task] if item is not None]
+                tasks = [item for item in [task, postgres_task, workload_task, dns_task, dns_workload_task, smtp_task, smtp_workload_task, traffic_task, integrity_task, vulnerability_task, resource_task] if item is not None]
                 for item in tasks:
                     item.cancel()
                 for item in tasks:
@@ -135,6 +139,11 @@ def create_app(settings: Settings | None = None, transport=None):
                         severity: Literal["all","critical","high","medium","low","negligible","unknown"]="all",
                         page: int=Query(default=1,ge=1,le=200)):
         return request.app.state.vulnerabilities.overview(service,severity,page)
+
+    @app.get("/api/resources")
+    async def resources(request: Request, service: Literal["web-demo", "postgres", "dns", "smtp"] = "postgres",
+                        window: Literal["15m", "1h", "6h", "24h"] = "15m"):
+        return await resource_overview(request.app.state.resources, request.app.state.prometheus, service, window)
 
     @app.get("/api/security/integrity")
     def integrity_overview(request: Request):
@@ -199,6 +208,7 @@ def create_app(settings: Settings | None = None, transport=None):
         content += generate_latest(request.app.state.traffic.registry)
         content += generate_latest(request.app.state.integrity.registry)
         content += generate_latest(request.app.state.vulnerabilities.registry)
+        content += generate_latest(request.app.state.resources.registry)
         return Response(content=content, media_type=CONTENT_TYPE_LATEST)
 
     @app.get("/api/smtp")

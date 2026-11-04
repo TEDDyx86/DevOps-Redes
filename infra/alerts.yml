@@ -214,3 +214,37 @@ groups:
         annotations:
           summary: Estatísticas do PostgreSQL indisponíveis
           description: SQL responde, mas a consulta de estatísticas falha. Verifique pg_stat_statements e o papel de monitoramento.
+  - name: recursos-laboratorio
+    rules:
+      - alert: RecursoCPUElevada
+        expr: (service_resource_cpu_cores{job="platform"} > on(service) service_resource_budget_cpu_cores{job="platform"}) and on(service) (service_resource_metric_available{job="platform",metric="cpu_cores"} == 1)
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Uso elevado de CPU: {{ $labels.service }}'
+          description: O contêiner excede o orçamento de 0,8 núcleo por 30 s. Um núcleo equivale a 1,0; não é percentual do host. Investigue a carga. Resolução sem coleta atual não comprova normalização.
+      - alert: RecursoMemoriaElevada
+        expr: (service_resource_memory_bytes{job="platform"} > on(service) service_resource_budget_memory_bytes{job="platform"}) and on(service) (service_resource_metric_available{job="platform",metric="memory_bytes"} == 1)
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Memória acima do orçamento: {{ $labels.service }}'
+          description: 'Working set acima do orçamento didático por 30 s: 128 MiB, ou 256 MiB para PostgreSQL. Não representa o limite compartilhado da VM. Resolução sem coleta atual não comprova normalização.'
+      - alert: RecursoIOElevado
+        expr: ((service_resource_read_bps{job="platform"} + on(service) service_resource_write_bps{job="platform"}) > on(service) service_resource_budget_io_bps{job="platform"}) and on(service) (service_resource_metric_available{job="platform",metric="read_bps"} == 1) and on(service) (service_resource_metric_available{job="platform",metric="write_bps"} == 1)
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Movimentação de blocos elevada: {{ $labels.service }}'
+          description: 'Leitura mais gravação excedem 10 MiB/s por 30 s. É movimentação contabilizada pelo Engine, não ocupação nem latência de disco. Resolução sem coleta atual não comprova normalização.'
+      - alert: RecursosColetaIndisponivel
+        expr: (service_resource_collection_success{job="platform"} == 0) and on() (service_resource_monitor_enabled == 1)
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Coleta de recursos indisponível: {{ $labels.service }}'
+          description: 'Sem snapshot válido de recursos por 30 s. Confira o coletor local e o Docker. CPU, memória e I/O estão desconhecidos; as sondas dos protocolos são independentes.'

@@ -73,7 +73,7 @@ export function SignalChart({
   unit,
 }: {
   data: ChartSample[];
-  metric: "rps" | "qps" | "messages_per_minute" | "latency_ms";
+  metric: "rps" | "qps" | "messages_per_minute" | "latency_ms" | "cpu_cores" | "memory_mib" | "read_kibps" | "write_kibps";
   title: string;
   subtitle: string;
   unit: string;
@@ -125,13 +125,13 @@ export function SignalChart({
                 tickLine={false}
                 domain={[0, "auto"]}
                 tickFormatter={(value) =>
-                  formatMetric(value, value < 1 ? 2 : 0)
+                  formatMetric(value, metric === "cpu_cores" ? 3 : value < 1 ? 2 : 0)
                 }
               />
               <Tooltip
                 labelFormatter={(value) => timeLabel(Number(value))}
                 formatter={(value) => [
-                  `${formatMetric(Number(value), 2)} ${unit}`,
+                  `${formatMetric(Number(value), metric === "cpu_cores" ? 3 : 2)} ${unit}`,
                   title,
                 ]}
                 contentStyle={{

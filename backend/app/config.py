@@ -26,6 +26,7 @@ class Settings:
     auth_cookie_secure: bool = False
     integrity_root: Path | None = None
     vulnerability_root: Path | None = None
+    resource_root: Path | None = None
 
     @classmethod
     def from_env(cls):
@@ -50,4 +51,5 @@ class Settings:
             auth_cookie_secure=os.getenv("AUTH_COOKIE_SECURE", "false").lower() == "true",
             integrity_root=Path(os.environ["CONFIG_WATCH_ROOT"]) if os.getenv("CONFIG_WATCH_ROOT") else None,
             vulnerability_root=Path(os.environ["VULNERABILITY_REPORT_ROOT"]) if os.getenv("VULNERABILITY_REPORT_ROOT") else None,
+            resource_root=Path(os.environ["RESOURCE_REPORT_ROOT"]) if os.getenv("RESOURCE_REPORT_ROOT") else None,
         )

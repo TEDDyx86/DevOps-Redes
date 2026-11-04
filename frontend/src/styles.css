@@ -1967,3 +1967,13 @@ h1 {
   max-width: 350px;
   display: inline-block;
 }
+.resource-panel .panel-heading h2 { display: flex; align-items: center; gap: 9px; }
+.resource-table small { display: block; margin-top: 7px; color: var(--muted); font-size: 10px; max-width: 210px; line-height: 1.5; white-space: normal; }
+.resource-number { font-variant-numeric: tabular-nums; }
+.resource-meter { display: block; width: 100%; max-width: 100px; height: 3px; margin-top: 9px; background: var(--line); border-radius: 2px; }
+.resource-meter i { display: block; height: 100%; background: var(--accent); border-radius: inherit; }
+.resource-meter.over-budget i { background: var(--yellow); }
+.resource-selection { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 20px; margin-bottom: 20px; }
+.resource-selection label { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 12px; }
+.resource-selection select { padding: 9px 12px; border: 1px solid var(--line); background: var(--surface); border-radius: 5px; max-width: 100%; }
+.resource-selection p { font-size: 11px; color: var(--muted); line-height: 1.7; }
