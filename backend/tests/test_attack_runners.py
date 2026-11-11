@@ -2,7 +2,7 @@ import threading
 
 import httpx
 
-from scripts.attack_panel import runners
+from scripts.attack_panel import catalog, runners
 from scripts.attack_panel.engine import Cancelled
 
 
@@ -120,3 +120,89 @@ def test_indisponibilidade_restaura_modo_normal_mesmo_interrompido(monkeypatch):
     assert modos[0] == b'{"mode":"offline"}'
     assert modos[-1] == b'{"mode":"normal"}'
     assert ctx.expected == ["HTTPIndisponivel"]
+
+
+def test_flood_via_job_de_carga_termina_quando_alerta_fica_firing(monkeypatch):
+    consultas = []
+    job_state = {"status": "running", "services": {"dns": {"attempted": 10, "successful": 9, "failed": 1}}}
+
+    def handler(request):
+        if request.method == "POST" and request.url.path == "/api/lab/traffic":
+            return httpx.Response(200, json={"status": "running"})
+        if request.method == "DELETE" and request.url.path == "/api/lab/traffic":
+            job_state["status"] = "cancelled"
+            return httpx.Response(200, json={"status": "cancelled"})
+        if request.url.path == "/api/lab/traffic":
+            return httpx.Response(200, json=dict(job_state))
+        if request.url.path == "/api/v1/query":
+            consultas.append(1)
+            if len(consultas) >= 2:
+                payload = {"status": "success", "data": {"result": [{"metric": {"alertname": "TrafegoAnormal", "alertstate": "firing"}}]}}
+            else:
+                payload = {"status": "success", "data": {"result": []}}
+            return httpx.Response(200, json=payload)
+        return httpx.Response(404)
+
+    monkeypatch.setattr(runners, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(handler), trust_env=False))
+    monkeypatch.setattr(runners, "lab_token", lambda: "token-de-teste")
+    monkeypatch.setattr(runners, "authenticate", lambda client: None)
+    ctx = FakeCtx()
+    runners.flood_dns(ctx, {"duracao": 60})
+    assert ctx.expected == ["TrafegoAnormal"]
+    assert ctx.counters["tentativas"] == 10
+    assert any("firing" in mensagem for mensagem in ctx.logs)
+
+
+def test_adulteracao_modifica_e_restaura_bytes_originais(monkeypatch, tmp_path):
+    alvo = tmp_path / "infra" / "dns" / "Corefile"
+    alvo.parent.mkdir(parents=True)
+    original = b"aularedes.local {\n  errors\n}\n"
+    alvo.write_bytes(original)
+    monkeypatch.setattr(runners, "ROOT", tmp_path)
+    ctx = FakeCtx()
+    runners.adulteracao_config(ctx, {"arquivo": "infra/dns/Corefile", "duracao": 1})
+    assert alvo.read_bytes() == original
+    assert ctx.expected == ["ConfiguracaoAlterada"]
+    assert any("restaurado" in mensagem for mensagem in ctx.logs)
+
+
+def test_adulteracao_recusa_arquivo_fora_de_infra(monkeypatch, tmp_path):
+    monkeypatch.setattr(runners, "ROOT", tmp_path)
+    ctx = FakeCtx()
+    try:
+        runners.adulteracao_config(ctx, {"arquivo": "../secrets/x", "duracao": 1})
+        raise AssertionError("deveria recusar")
+    except ValueError as error:
+        assert "arquivo_fora_do_escopo" in str(error)
+
+
+def test_interrupcao_para_e_reinicia_servico_com_alerta_do_alvo(monkeypatch):
+    comandos = []
+
+    def docker_falso(*argumentos):
+        comandos.append(list(argumentos))
+
+    def handler(request):
+        return httpx.Response(200, json={"status": "success", "data": {"result": [{"metric": {"alertname": "DNSIndisponivel", "alertstate": "firing"}}]}})
+
+    monkeypatch.setattr(runners, "_docker_compose", docker_falso)
+    monkeypatch.setattr(runners, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(handler), trust_env=False))
+    ctx = FakeCtx()
+    runners.interrupcao_servico(ctx, {"alvo": "dns", "duracao": 60})
+    assert comandos == [["stop", "dns"], ["start", "dns"]]
+    assert ctx.expected == ["DNSIndisponivel"]
+    assert any("reiniciado" in mensagem for mensagem in ctx.logs)
+
+
+def test_interrupcao_recusa_alvos_proibidos():
+    ctx = FakeCtx()
+    for alvo in ("api", "prometheus", "alertmanager"):
+        try:
+            runners.interrupcao_servico(ctx, {"alvo": alvo, "duracao": 30})
+            raise AssertionError("deveria recusar " + alvo)
+        except ValueError as error:
+            assert "alvo_invalido" in str(error)
+
+
+def test_registro_runners_cobre_o_catalogo():
+    assert set(runners.RUNNERS) == {ataque["id"] for ataque in catalog.CATALOG}

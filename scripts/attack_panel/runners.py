@@ -164,3 +164,111 @@ def indisponibilidade_http(ctx, params):
                 ctx.log("Modo normal restaurado")
             else:
                 ctx.log(f"ATENÇÃO: restauração do modo falhou com HTTP {restore.status_code}; restaurar manualmente")
+
+
+STOP_ALERTS = {"dns": "DNSIndisponivel", "smtp": "SMTPIndisponivel",
+               "web-demo": "HTTPIndisponivel", "postgres": "PostgreSQLIndisponivel"}
+
+
+def _docker_compose(*arguments):
+    flags = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}
+    return subprocess.run(["docker", "compose", *arguments], cwd=str(ROOT), check=True,
+                          capture_output=True, timeout=90, **flags)
+
+
+def _traffic_attack(ctx, service, duracao, expected):
+    ctx.set_expected_alerts(expected)
+    duracao = int(duracao)
+    with make_client() as client:
+        authenticate(client)
+        response = client.post(PANEL_BASE + "/api/lab/traffic", headers={"X-Lab-Token": lab_token()},
+                               json={"service": service, "duration": duracao})
+        response.raise_for_status()
+        ctx.log(f"Job de carga iniciado contra {service} por {duracao}s")
+        try:
+            while True:
+                ctx.check_cancelled()
+                job = client.get(PANEL_BASE + "/api/lab/traffic").json()
+                if job.get("status") != "running":
+                    break
+                counts = job.get("services", {}).get(service, {})
+                ctx.progress(tentativas=counts.get("attempted", 0), sucesso=counts.get("successful", 0),
+                             falhas=counts.get("failed", 0))
+                if expected[0] in _firing(client):
+                    ctx.log(f"Alerta {expected[0]} em firing; encerrando execução para verificação")
+                    break
+                time.sleep(1)
+        finally:
+            final = client.get(PANEL_BASE + "/api/lab/traffic")
+            try:
+                status = final.json().get("status")
+            except Exception:
+                status = "desconhecido"
+            if status == "running":
+                client.request("DELETE", PANEL_BASE + "/api/lab/traffic")
+                ctx.log("Job de carga cancelado no fim do ataque")
+            else:
+                ctx.log(f"Job de carga terminou com status {status}")
+
+
+def flood_dns(ctx, params):
+    _traffic_attack(ctx, "dns", params["duracao"], ["TrafegoAnormal"])
+
+
+def flood_smtp(ctx, params):
+    _traffic_attack(ctx, "smtp", params["duracao"], ["TrafegoAnormal"])
+
+
+def adulteracao_config(ctx, params):
+    relativo = str(params["arquivo"])
+    duracao = int(params["duracao"])
+    ctx.set_expected_alerts(["ConfiguracaoAlterada"])
+    raiz = ROOT.resolve()
+    caminho = (raiz / relativo).resolve()
+    if not str(caminho).startswith(str(raiz / "infra") + os.sep):
+        raise ValueError("arquivo_fora_do_escopo")
+    if not caminho.is_file():
+        raise FileNotFoundError(relativo)
+    original = caminho.read_bytes()
+    caminho.write_bytes(original + b"\n# linha adulterada pelo painel de ataques\n")
+    ctx.log(f"Arquivo {relativo} adulterado; coletor de integridade deve detectar a mudança")
+    try:
+        _hold(ctx, duracao)
+    finally:
+        caminho.write_bytes(original)
+        ctx.log(f"Arquivo {relativo} restaurado byte a byte")
+
+
+def interrupcao_servico(ctx, params):
+    alvo = str(params["alvo"])
+    duracao = int(params["duracao"])
+    if alvo not in STOP_ALERTS:
+        raise ValueError("alvo_invalido")
+    ctx.set_expected_alerts([STOP_ALERTS[alvo]])
+    _docker_compose("stop", alvo)
+    ctx.log(f"Serviço {alvo} parado; sondas correspondentes devem falhar")
+    try:
+        deadline = time.monotonic() + max(duracao, 90)
+        with make_client() as client:
+            while time.monotonic() < deadline:
+                ctx.check_cancelled()
+                if STOP_ALERTS[alvo] in _firing(client):
+                    ctx.log(f"Alerta {STOP_ALERTS[alvo]} em firing; restaurando serviço")
+                    break
+                ctx.progress(segundos_restantes=max(0, int(deadline - time.monotonic())))
+                time.sleep(1)
+    finally:
+        _docker_compose("start", alvo)
+        ctx.log(f"Serviço {alvo} reiniciado")
+
+
+RUNNERS = {
+    "bruteforce-servico": bruteforce_servico,
+    "bruteforce-painel": bruteforce_painel,
+    "sobrecarga-http": sobrecarga_http,
+    "indisponibilidade-http": indisponibilidade_http,
+    "flood-dns": flood_dns,
+    "flood-smtp": flood_smtp,
+    "adulteracao-config": adulteracao_config,
+    "interrupcao-servico": interrupcao_servico,
+}
