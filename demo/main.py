@@ -23,6 +23,7 @@ def create_demo(token=None,runtime_config=None):
     registry = CollectorRegistry()
     requests = Counter("demo_http_requests_total", "Completed HTTP requests", ["path", "status"], registry=registry)
     duration = Histogram("demo_http_duration_seconds", "HTTP duration", ["path"], buckets=[.01, .025, .05, .1, .25, .5, 1, 2, 5], registry=registry)
+    auth = Counter("demo_auth_attempts_total", "Service authentication attempts", ["path", "result"], registry=registry)
 
     @app.middleware("http")
     async def instrument(request: Request, call_next):
@@ -56,7 +57,9 @@ def create_demo(token=None,runtime_config=None):
     @app.post("/mode")
     def set_mode(body: Mode, x_lab_token: str = Header(default="")):
         if not token or not hmac.compare_digest(token, x_lab_token):
+            auth.labels("/mode", "failed").inc()
             raise HTTPException(401, "Token inválido")
+        auth.labels("/mode", "accepted").inc()
         app.state.mode = body.mode
         return {"mode": app.state.mode}
 

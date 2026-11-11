@@ -12,6 +12,7 @@ export interface ResourceService {
 export interface ResourceOverview {
   generated_at: number; service: string; window: Window; history_available: boolean;
   services: ResourceService[];
+  host: { available: boolean; free_bytes: number | null; total_bytes: number | null };
   series: { timestamp: number; cpu_cores: number | null; memory_bytes: number | null;
     read_bps: number | null; write_bps: number | null }[];
 }

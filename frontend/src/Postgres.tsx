@@ -59,6 +59,14 @@ export default function PostgresView({
 }) {
   const service = data?.service;
   const stats = data?.stats;
+  const diskValues = [stats?.disk_read_ms, stats?.disk_write_ms].filter(
+    (value): value is number => value !== null && value !== undefined,
+  );
+  const diskLatency =
+    diskValues.length > 0
+      ? diskValues.reduce((total, value) => total + value, 0) /
+        diskValues.length
+      : null;
   const databaseIncidents = incidents.filter(
     (item) => item.service === "postgres",
   );
@@ -114,7 +122,10 @@ export default function PostgresView({
             {formatMetric(stats?.connections, 0)}
             <small> / {formatMetric(stats?.connection_limit, 0)}</small>
           </strong>
-          <p>Banco de laboratório / limite do cluster</p>
+          <p>
+            Ativas {formatMetric(stats?.connections_active, 0)} · ociosas{" "}
+            {formatMetric(stats?.connections_idle, 0)}
+          </p>
         </div>
         <div className="metric">
           <span>Tamanho do banco</span>
@@ -154,6 +165,31 @@ export default function PostgresView({
           <strong>
             {formatMetric(stats?.rollbacks_per_second, 2)}{" "}
             <small>rollbacks/s</small>
+          </strong>
+        </div>
+        <div>
+          <span>Consultas lentas</span>
+          <strong>
+            {formatMetric(stats?.slow_statements, 0)}{" "}
+            <small>acima de 100 ms</small>
+          </strong>
+        </div>
+        <div>
+          <span>Latência de disco</span>
+          <strong>
+            {formatMetric(diskLatency, 2)} <small>ms</small>
+          </strong>
+        </div>
+        <div>
+          <span>Crescimento do banco</span>
+          <strong>
+            {formatMetric(
+              stats?.growth_bytes_per_day == null
+                ? null
+                : stats.growth_bytes_per_day / 1024 ** 3,
+              3,
+            )}{" "}
+            <small>GiB/dia</small>
           </strong>
         </div>
       </section>
@@ -203,7 +239,8 @@ export default function PostgresView({
           </p>
           <p className="workload-note">
             Comandos/s vêm do pg_stat_statements. Commits e rollbacks incluem
-            também conexões de monitoramento.
+            também conexões de monitoramento. A latência de disco vem dos
+            contadores de I/O do próprio PostgreSQL (pg_stat_io).
           </p>
         </aside>
       </div>

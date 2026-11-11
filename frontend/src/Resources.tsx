@@ -57,6 +57,9 @@ export default function Resources({window, refresh, incidents}: {window: Window;
         <td>{timeLabel(row.observed_at)}{row.reason && <small>{reasons[row.reason] ?? "Verifique a coleta."}</small>}</td>
       </tr>)}</tbody></table></div>
       {!current && <p className="security-note muted">Aguardando medições de recursos.</p>}
+      {current && <p className="security-note muted">{current.host?.available && current.host.free_bytes !== null
+        ? `Volume do projeto: ${formatMetric(current.host.free_bytes / 1024 ** 3, 1)} GiB livres de ${formatMetric((current.host.total_bytes ?? 0) / 1024 ** 3, 1)} GiB.`
+        : "Espaço livre do volume do projeto: desconhecido nesta amostra."}</p>}
       <p className="security-note muted">1,0 núcleo equivale a uma CPU ocupada; pode haver uso de vários núcleos. RAM mostra o uso menos cache inativo (working set). Os orçamentos orientam a observação e não impõem limites aos serviços.</p>
       <p className="security-note muted">I/O mede bytes de blocos contabilizados pelo Engine, sujeitos ao cache e ao armazenamento da VM. Não representa espaço ocupado, IOPS ou latência do disco. Ausência de dados aparece como —, nunca como zero saudável.</p>
     </section>
@@ -71,7 +74,7 @@ export default function Resources({window, refresh, incidents}: {window: Window;
       <SignalChart data={series} metric="write_kibps" title="Gravação de blocos" subtitle="Reinícios e falhas interrompem a série" unit="KiB/s"/>
     </div>
     <section className="panel"><div className="panel-heading"><div><h2>Incidentes de recursos</h2><p>Orçamentos excedidos e indisponibilidade da coleta.</p></div></div>
-      <IncidentsList incidents={incidents.filter(row => ["RecursoCPUElevada", "RecursoMemoriaElevada", "RecursoIOElevado", "RecursosColetaIndisponivel"].includes(row.name))} compact/>
+      <IncidentsList incidents={incidents.filter(row => ["RecursoCPUElevada", "RecursoMemoriaElevada", "RecursoIOElevado", "RecursoDiscoLivreBaixo", "RecursosColetaIndisponivel"].includes(row.name))} compact/>
     </section>
   </>;
 }

@@ -82,10 +82,16 @@ export interface PostgresOverview {
     available: boolean;
     connections: number | null;
     connection_limit: number | null;
+    connections_active: number | null;
+    connections_idle: number | null;
     database_bytes: number | null;
     commits_per_second: number | null;
     rollbacks_per_second: number | null;
     qps: number | null;
+    slow_statements: number | null;
+    growth_bytes_per_day: number | null;
+    disk_read_ms: number | null;
+    disk_write_ms: number | null;
   };
   series: ChartSample[];
 }

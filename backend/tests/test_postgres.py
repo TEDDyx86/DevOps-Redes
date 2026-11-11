@@ -52,10 +52,16 @@ def postgres_values(success=1):
         'postgres_stats_success{job="platform"}': 1,
         'postgres_connections{job="platform"}': 3,
         'postgres_connections_limit{job="platform"}': 100,
+        'postgres_connections_active{job="platform"}': 1,
+        'postgres_connections_idle{job="platform"}': 2,
+        'postgres_slow_statements{job="platform"}': 0,
         'postgres_database_bytes{job="platform"}': 9000000,
         'rate(postgres_commits_total{job="platform"}[1m])': 2,
         'rate(postgres_rollbacks_total{job="platform"}[1m])': .2,
         'rate(postgres_workload_statements_total{job="platform"}[1m])': 4,
+        'rate(postgres_database_bytes{job="platform"}[1h]) * 86400': 1048576,
+        'rate(postgres_io_read_time_milliseconds_total{job="platform"}[1m]) / rate(postgres_io_reads_total{job="platform"}[1m])': .5,
+        'rate(postgres_io_write_time_milliseconds_total{job="platform"}[1m]) / rate(postgres_io_writes_total{job="platform"}[1m])': .8,
     }
 
 
@@ -69,6 +75,21 @@ def test_postgres_returns_sql_metrics_distinct_from_transactions(tmp_path):
         assert data["stats"]["commits_per_second"] == 2
         assert data["stats"]["rollbacks_per_second"] == .2
         assert data["stats"]["database_bytes"] == 9000000
+        assert data["stats"]["connections_active"] == 1
+        assert data["stats"]["connections_idle"] == 2
+        assert data["stats"]["slow_statements"] == 0
+        assert data["stats"]["growth_bytes_per_day"] == 1048576
+        assert data["stats"]["disk_read_ms"] == .5
+        assert data["stats"]["disk_write_ms"] == .8
+
+
+def test_division_without_operations_is_unknown_not_nan(tmp_path):
+    values = postgres_values()
+    values['rate(postgres_io_write_time_milliseconds_total{job="platform"}[1m]) / rate(postgres_io_writes_total{job="platform"}[1m])'] = "NaN"
+    with client(tmp_path, response(values)) as api:
+        data = api.get("/api/postgres").json()
+        assert data["stats"]["disk_write_ms"] is None
+        assert data["stats"]["disk_read_ms"] == .5
 
 
 def test_down_postgres_hides_old_statistics(tmp_path):
@@ -123,6 +144,11 @@ def test_absent_statistics_are_omitted_instead_of_nan_counters():
     text = generate_latest(probe.registry).decode()
     assert "# TYPE postgres_commits_total counter" in text
     assert "postgres_commits_total 10.0" in text
+    probe.snapshot = {"probe_success": 1, "io_reads": 5, "io_read_time_milliseconds": 2.5}
+    text = generate_latest(probe.registry).decode()
+    assert "# TYPE postgres_io_reads_total counter" in text
+    assert "postgres_io_reads_total 5.0" in text
+    assert "postgres_io_read_time_milliseconds_total 2.5" in text
 
 
 def test_statistics_timeout_preserves_successful_sql_probe(monkeypatch):

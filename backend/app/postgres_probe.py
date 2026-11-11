@@ -9,13 +9,26 @@ from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily
 
 
 logger = logging.getLogger(__name__)
-STATISTICS_SQL = """
+SLOW_MILLISECONDS = 100
+STATISTICS_SQL = f"""
 SELECT numbackends, xact_commit, xact_rollback,
        pg_database_size(current_database()),
        current_setting('max_connections')::int,
        (SELECT COALESCE(sum(calls), 0) FROM pg_stat_statements
         WHERE dbid = (SELECT oid FROM pg_database WHERE datname = current_database())
-          AND userid = (SELECT oid FROM pg_roles WHERE rolname = 'lab_workload'))
+          AND userid = (SELECT oid FROM pg_roles WHERE rolname = 'lab_workload')),
+       (SELECT count(*) FROM pg_stat_statements
+        WHERE dbid = (SELECT oid FROM pg_database WHERE datname = current_database())
+          AND userid = (SELECT oid FROM pg_roles WHERE rolname = 'lab_workload')
+          AND mean_exec_time > {SLOW_MILLISECONDS}),
+       (SELECT count(*) FROM pg_stat_activity
+        WHERE datname = current_database() AND state = 'active'),
+       (SELECT count(*) FROM pg_stat_activity
+        WHERE datname = current_database() AND state = 'idle'),
+       (SELECT COALESCE(sum(reads), 0) FROM pg_stat_io),
+       (SELECT COALESCE(sum(read_time), 0) FROM pg_stat_io),
+       (SELECT COALESCE(sum(writes), 0) FROM pg_stat_io),
+       (SELECT COALESCE(sum(write_time), 0) FROM pg_stat_io))
 FROM pg_stat_database WHERE datname = current_database()
 """
 GAUGES = {
@@ -26,12 +39,19 @@ GAUGES = {
     "stats_checked_at_seconds": "Unix time of the latest successful statistics collection",
     "connections": "Open backends in the monitored database",
     "connections_limit": "Configured max_connections for this dedicated cluster",
+    "connections_active": "Backends running a query in the monitored database",
+    "connections_idle": "Idle backends in the monitored database",
+    "slow_statements": f"lab_workload commands with mean execution above {SLOW_MILLISECONDS} ms",
     "database_bytes": "Size of the monitored database in bytes",
 }
 COUNTERS = {
     "commits": "Committed database transactions since PostgreSQL statistics reset",
     "rollbacks": "Rolled back database transactions since PostgreSQL statistics reset",
     "workload_statements": "SQL commands executed by lab_workload since pg_stat_statements reset",
+    "io_reads": "Data file blocks read by the cluster since PostgreSQL statistics reset",
+    "io_read_time_milliseconds": "Time spent reading data file blocks, in milliseconds",
+    "io_writes": "Data file blocks written by the cluster since PostgreSQL statistics reset",
+    "io_write_time_milliseconds": "Time spent writing data file blocks, in milliseconds",
 }
 
 
@@ -69,10 +89,15 @@ class PostgresProbe:
                     cursor = await connection.execute(STATISTICS_SQL)
                     row = await cursor.fetchone()
                     if row is not None:
-                        connections, commits, rollbacks, size, limit, queries = row
+                        (connections, commits, rollbacks, size, limit, queries, slow,
+                         active, idle, io_reads, io_read_time, io_writes, io_write_time) = row
                         snapshot.update(connections=connections, commits=commits, rollbacks=rollbacks,
                                         database_bytes=size, connections_limit=limit,
-                                        workload_statements=float(queries), stats_success=1,
+                                        workload_statements=float(queries), slow_statements=int(slow),
+                                        connections_active=int(active), connections_idle=int(idle),
+                                        io_reads=float(io_reads), io_read_time_milliseconds=float(io_read_time),
+                                        io_writes=float(io_writes), io_write_time_milliseconds=float(io_write_time),
+                                        stats_success=1,
                                         stats_checked_at_seconds=time.time())
             except (psycopg.Error, TimeoutError):
                 # A slow statistics query cannot undo a successful SELECT 1.

@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -184,7 +185,12 @@ def collect_once(python, previous):
                 rows[service] = unavailable("invalid_stats"); previous.pop(service, None)
     except (OSError, ValueError, subprocess.SubprocessError, KeyError, TypeError):
         previous.clear()
-    value = {"schema_version": 1, "sampled_at": time.time(), "services": rows}
+    value = {"schema_version": 2, "sampled_at": time.time(), "services": rows}
+    try:
+        usage = shutil.disk_usage(ROOT)  # Volume hosting the project; stdlib only.
+        value["host"] = {"free_bytes": float(usage.free), "total_bytes": float(usage.total), "sampled_at": time.time()}
+    except OSError:
+        pass
     validate_snapshot(value)
     if len(json.dumps(value).encode()) > MAX_BYTES: raise ValueError("snapshot_too_large")
     atomic_json(DIRECTORY / "snapshot.json", value)

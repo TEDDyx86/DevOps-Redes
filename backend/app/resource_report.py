@@ -5,12 +5,14 @@ from datetime import datetime, timezone
 
 SERVICES = {"web-demo": "HTTP", "postgres": "PostgreSQL", "dns": "DNS", "smtp": "SMTP"}
 METRICS = ("cpu_cores", "memory_bytes", "memory_total_bytes", "engine_memory_limit_bytes", "read_bps", "write_bps")
+HOST_KEYS = ("free_bytes", "total_bytes")
 FRESH_SECONDS = 20
 MAX_BYTES = 65536
 CPU_BUDGET = .8
 IO_BUDGET = 10 * 1024 ** 2
 MEMORY_BUDGETS = {key: (256 if key == "postgres" else 128) * 1024 ** 2 for key in SERVICES}
 ERRORS = {None, "container_not_running", "sampling_failed", "container_changed", "invalid_stats", "ambiguous_container"}
+FREE_BYTES_BUDGET = 2 * 1024 ** 3
 
 
 def number(value):
@@ -91,7 +93,7 @@ def measure(identity, boot, raw, previous, now):
 
 def validate_snapshot(value):
     try:
-        if value["schema_version"] != 1 or number(value["sampled_at"]) is None or set(value["services"]) != set(SERVICES):
+        if value["schema_version"] not in (1, 2) or number(value["sampled_at"]) is None or set(value["services"]) != set(SERVICES):
             raise ValueError("invalid_snapshot")
         for row in value["services"].values():
             if type(row["running"]) is not bool or type(row["source_ok"]) is not bool or row["error"] not in ERRORS:
@@ -107,6 +109,15 @@ def validate_snapshot(value):
                     raise ValueError("invalid_source")
             elif any(v is not None for v in row["values"].values()):
                 raise ValueError("unavailable_values")
+        # Schema 2 adds a host block; schema 1 snapshots without it remain valid.
+        if "host" in value:
+            host = value["host"]
+            if not isinstance(host, dict) or set(host) != set(HOST_KEYS) | {"sampled_at"}:
+                raise ValueError("invalid_host")
+            if any(number(host[key]) is None for key in HOST_KEYS) or number(host["sampled_at"]) is None:
+                raise ValueError("invalid_host")
+            if host["free_bytes"] > host["total_bytes"]:
+                raise ValueError("invalid_host")
         return value
     except (KeyError, TypeError, AttributeError) as error:
         raise ValueError("invalid_snapshot") from error

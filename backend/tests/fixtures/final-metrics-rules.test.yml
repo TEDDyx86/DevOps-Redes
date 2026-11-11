@@ -1,0 +1,74 @@
+rule_files:
+  - /etc/prometheus/alerts.yml
+evaluation_interval: 1s
+tests:
+  - interval: 1s
+    input_series:
+      - series: 'postgres_slow_statements{job="platform"}'
+        values: '0x20 2x60'
+      - series: 'postgres_probe_success{job="platform"}'
+        values: '1x80'
+    alert_rule_test:
+      - eval_time: 20s
+        alertname: PostgreSQLConsultasLentas
+        exp_alerts: []
+      - eval_time: 60s
+        alertname: PostgreSQLConsultasLentas
+        exp_alerts:
+          - exp_labels: {job: platform, service: postgres, severity: warning}
+            exp_annotations:
+              summary: PostgreSQL com consultas lentas
+              description: Há comandos do laboratório com execução média acima de 100 ms no pg_stat_statements por 30 s. Confira consultas, índices e recursos do banco.
+  - interval: 1s
+    input_series:
+      - series: 'postgres_probe_success{job="platform"}'
+        values: '1x80'
+      - series: 'postgres_io_reads_total{job="platform"}'
+        values: '0+100x80'
+      - series: 'postgres_io_read_time_milliseconds_total{job="platform"}'
+        values: '0+10000x80'
+      - series: 'postgres_io_writes_total{job="platform"}'
+        values: '0+100x80'
+      - series: 'postgres_io_write_time_milliseconds_total{job="platform"}'
+        values: '0+200x80'
+    alert_rule_test:
+      - eval_time: 20s
+        alertname: PostgreSQLDiscoLento
+        exp_alerts: []
+      - eval_time: 60s
+        alertname: PostgreSQLDiscoLento
+        exp_alerts:
+          - exp_labels: {job: platform, service: postgres, severity: warning}
+            exp_annotations:
+              summary: PostgreSQL com disco lento
+              description: A latência média de leitura ou gravação de blocos (pg_stat_io) excedeu 50 ms por 30 s. Operações sem amostras ficam fora do cálculo. Investigue I/O do volume.
+  - interval: 1s
+    input_series:
+      - series: 'service_resource_host_free_bytes{job="platform"}'
+        values: '4294967296x20 2147483647x80'
+    alert_rule_test:
+      - eval_time: 20s
+        alertname: RecursoDiscoLivreBaixo
+        exp_alerts: []
+      - eval_time: 60s
+        alertname: RecursoDiscoLivreBaixo
+        exp_alerts:
+          - exp_labels: {job: platform, severity: warning}
+            exp_annotations:
+              summary: Espaço livre baixo no volume do projeto
+              description: O volume que hospeda a pasta do projeto está com menos de 2 GiB livres por 30 s. Métricas, incidentes e volumes do laboratório podem deixar de persistir. Libere espaço antes de continuar.
+  - interval: 1s
+    input_series:
+      - series: 'demo_auth_attempts_total{job="web-demo",path="/mode",result="failed"}'
+        values: '0x10 6x80'
+    alert_rule_test:
+      - eval_time: 20s
+        alertname: AutenticacaoServicoSuspeita
+        exp_alerts: []
+      - eval_time: 60s
+        alertname: AutenticacaoServicoSuspeita
+        exp_alerts:
+          - exp_labels: {job: web-demo, path: /mode, result: failed, service: web-demo, severity: warning}
+            exp_annotations:
+              summary: Tentativas repetidas de acesso ao serviço monitorado
+              description: Cinco ou mais tentativas com token inválido no serviço HTTP de demonstração em um minuto, mantidas por 30 segundos. Confira a origem; acessos normais passam pela plataforma.

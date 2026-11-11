@@ -80,6 +80,15 @@ groups:
         annotations:
           summary: Tentativas repetidas de acesso ao painel
           description: O limite de falhas de autenticação foi atingido na janela de 60 segundos. Novos logins recebem bloqueio temporário; confira os eventos na aba Segurança.
+      - alert: AutenticacaoServicoSuspeita
+        expr: increase(demo_auth_attempts_total{job="web-demo",path="/mode",result="failed"}[1m]) >= 5
+        for: 30s
+        labels:
+          severity: warning
+          service: web-demo
+        annotations:
+          summary: Tentativas repetidas de acesso ao serviço monitorado
+          description: Cinco ou mais tentativas com token inválido no serviço HTTP de demonstração em um minuto, mantidas por 30 segundos. Confira a origem; acessos normais passam pela plataforma.
   - name: smtp-laboratorio
     rules:
       - alert: SMTPIndisponivel
@@ -214,6 +223,24 @@ groups:
         annotations:
           summary: Estatísticas do PostgreSQL indisponíveis
           description: SQL responde, mas a consulta de estatísticas falha. Verifique pg_stat_statements e o papel de monitoramento.
+      - alert: PostgreSQLConsultasLentas
+        expr: postgres_slow_statements{job="platform"} > 0
+        for: 30s
+        labels:
+          severity: warning
+          service: postgres
+        annotations:
+          summary: PostgreSQL com consultas lentas
+          description: Há comandos do laboratório com execução média acima de 100 ms no pg_stat_statements por 30 s. Confira consultas, índices e recursos do banco.
+      - alert: PostgreSQLDiscoLento
+        expr: ((rate(postgres_io_read_time_milliseconds_total{job="platform"}[1m]) / rate(postgres_io_reads_total{job="platform"}[1m]) > 50) or (rate(postgres_io_write_time_milliseconds_total{job="platform"}[1m]) / rate(postgres_io_writes_total{job="platform"}[1m]) > 50)) and (postgres_probe_success{job="platform"} == 1)
+        for: 30s
+        labels:
+          severity: warning
+          service: postgres
+        annotations:
+          summary: PostgreSQL com disco lento
+          description: A latência média de leitura ou gravação de blocos (pg_stat_io) excedeu 50 ms por 30 s. Operações sem amostras ficam fora do cálculo. Investigue I/O do volume.
   - name: recursos-laboratorio
     rules:
       - alert: RecursoCPUElevada
@@ -248,3 +275,11 @@ groups:
         annotations:
           summary: 'Coleta de recursos indisponível: {{ $labels.service }}'
           description: 'Sem snapshot válido de recursos por 30 s. Confira o coletor local e o Docker. CPU, memória e I/O estão desconhecidos; as sondas dos protocolos são independentes.'
+      - alert: RecursoDiscoLivreBaixo
+        expr: service_resource_host_free_bytes{job="platform"} < 2147483648
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: Espaço livre baixo no volume do projeto
+          description: O volume que hospeda a pasta do projeto está com menos de 2 GiB livres por 30 s. Métricas, incidentes e volumes do laboratório podem deixar de persistir. Libere espaço antes de continuar.

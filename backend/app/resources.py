@@ -37,6 +37,8 @@ class ResourceMonitor:
         with self.lock:
             snapshot, sampled = self.snapshot, self.sampled_at
         current = snapshot is not None and fresh(sampled, now, 20) and fresh(snapshot["sampled_at"], now, 20)
+        host = snapshot.get("host") if snapshot is not None else None
+        host_available = bool(current and host is not None and fresh(host["sampled_at"], now, 20))
         rows = []
         for service, name in SERVICES.items():
             source = snapshot["services"][service] if snapshot is not None else None
@@ -62,7 +64,10 @@ class ResourceMonitor:
                          "container_id": source["container_id"] if source else None,
                          "started_at": source["started_at"] if source else None, "values": values,
                          "budgets": {"cpu_cores": CPU_BUDGET, "memory_bytes": MEMORY_BUDGETS[service], "io_bps": IO_BUDGET}})
-        return {"generated_at": now, "services": rows}
+        return {"generated_at": now, "services": rows,
+                "host": {"available": host_available,
+                         "free_bytes": host["free_bytes"] if host_available else None,
+                         "total_bytes": host["total_bytes"] if host_available else None}}
 
     async def run(self):
         while True:
@@ -70,10 +75,20 @@ class ResourceMonitor:
             await asyncio.sleep(5)
 
     def collect(self):
-        rows = self.overview()["services"]
+        state = self.overview()
+        rows = state["services"]
+        host = state["host"]
         enabled = GaugeMetricFamily("service_resource_monitor_enabled", "Local resource monitoring configured")
         enabled.add_metric([], float(self.root is not None))
         yield enabled
+        host_free = GaugeMetricFamily("service_resource_host_free_bytes", "Free bytes on the volume hosting the project")
+        if host["available"]:
+            host_free.add_metric([], host["free_bytes"])
+        yield host_free
+        host_total = GaugeMetricFamily("service_resource_host_total_bytes", "Total bytes on the volume hosting the project")
+        if host["available"]:
+            host_total.add_metric([], host["total_bytes"])
+        yield host_total
         success = GaugeMetricFamily("service_resource_collection_success", "Fresh Engine snapshot available", labels=["service"])
         availability = GaugeMetricFamily("service_resource_metric_available", "Fresh individual metric available", labels=["service", "metric"])
         checked = GaugeMetricFamily("service_resource_observed_at_seconds", "Engine sample time", labels=["service"])

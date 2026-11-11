@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { currentResources, type ResourceOverview } from "./resourceState";
 
 const data: ResourceOverview = { generated_at: 1000, service: "postgres", window: "15m", history_available: true, series: [],
+  host: { available: true, free_bytes: 3 * 1024 ** 3, total_bytes: 10 * 1024 ** 3 },
   services: [{ id: "postgres", name: "PostgreSQL", status: "ok", available: true, reason: null, observed_at: 1000,
     container_id: "a".repeat(64), started_at: "1970-01-01T00:00:01Z",
     values: { cpu_cores: 0, memory_bytes: 1024, memory_total_bytes: 2048, engine_memory_limit_bytes: 1e9, read_bps: 0, write_bps: 0 },

@@ -85,6 +85,25 @@ def test_resource_api_authenticated_and_history_failure_is_explicit(tmp_path):
         assert client.get("/api/resources").status_code == 401
 
 
+def test_host_free_space_is_exposed_and_stays_optional(tmp_path, monkeypatch):
+    monkeypatch.setattr("backend.app.resources.time.time", lambda: 1001)
+    data = report(tmp_path)
+    data["host"] = {"free_bytes": 3 * 1024**3, "total_bytes": 10 * 1024**3, "sampled_at": 1000}
+    (tmp_path / "snapshot.json").write_text(json.dumps(data), encoding="utf-8")
+    monitor = ResourceMonitor(tmp_path); monitor.sample(now=1000)
+    assert monitor.overview(now=1001)["host"] == {"available": True, "free_bytes": 3 * 1024**3, "total_bytes": 10 * 1024**3}
+    metrics = generate_latest(monitor.registry).decode()
+    assert "# TYPE service_resource_host_free_bytes gauge" in metrics and "service_resource_host_free_bytes 3" in metrics
+    data.pop("host"); (tmp_path / "snapshot.json").write_text(json.dumps(data), encoding="utf-8")
+    monitor.sample(now=1001)
+    assert monitor.overview(now=1002)["host"]["available"] is False
+    assert "service_resource_host_free_bytes 3" not in generate_latest(monitor.registry).decode()
+    data["host"] = {"free_bytes": 10 * 1024**3, "total_bytes": 1, "sampled_at": 1000}
+    (tmp_path / "snapshot.json").write_text(json.dumps(data), encoding="utf-8")
+    monitor.sample(now=1002)
+    assert monitor.overview(now=1003)["host"] == {"available": False, "free_bytes": None, "total_bytes": None}
+
+
 def test_historical_gaps_are_not_bridged_and_queries_mask_availability(tmp_path):
     root = tmp_path / "resources"; report(root, time.time())
     queries, stamps = [], []

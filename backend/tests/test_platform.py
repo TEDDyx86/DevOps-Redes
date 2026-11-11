@@ -123,6 +123,19 @@ def test_demo_failure_preserves_metrics_endpoint():
         metrics = client.get("/metrics")
         assert metrics.status_code == 200
         assert 'status="503"' in metrics.text
+        assert 'demo_auth_attempts_total{path="/mode",result="failed"} 1.0' in metrics.text
+        assert 'demo_auth_attempts_total{path="/mode",result="accepted"} 1.0' in metrics.text
+
+
+def test_demo_service_auth_failures_are_counted_for_alerts():
+    from demo.main import create_demo
+
+    with PublicClient(create_demo("demo-secret")) as client:
+        for _ in range(5):
+            assert client.post("/mode", json={"mode": "slow"}, headers={"X-Lab-Token": "wrong"}).status_code == 401
+        metrics = client.get("/metrics").text
+        assert 'demo_auth_attempts_total{path="/mode",result="failed"} 5.0' in metrics
+        assert 'demo_auth_attempts_total{path="/mode",result="accepted"}' not in metrics
 
 
 def test_failed_only_traffic_still_has_metrics(tmp_path):
