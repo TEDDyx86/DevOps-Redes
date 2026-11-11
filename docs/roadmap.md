@@ -34,6 +34,12 @@ Pendências técnicas do PostgreSQL resolvidas: consultas lentas por `pg_stat_st
 
 Próximas pendências: relatório ABNT com rastreabilidade ao PDF; roteiro da apresentação. A triagem das vulnerabilidades das imagens novas foi concluída em 11/11 com uma remediação real: a imagem PostgreSQL ganhou 1 crítico/12 altos com a base de avisos atualizada e foi corrigida fixando as versões publicadas do Alpine no Dockerfile (zlib, krb5-libs, libxslt) e atualizando o pin da base — 0 críticos/0 altos após reanálise, dados preservados. Um bug do worker (corrida `os.replace`/leitor no Windows) foi corrigido com retry testado; contêineres órfãos de imagens não exportáveis foram recriados. Achados residuais triados e documentados em `docs/runbook-vulnerabilidades.md`: 59 dos 61 altos da plataforma são avisos `wont-fix` da Debian 13 (os 2 corrigíveis ainda não propagaram na base Python); DNS depende de tag nova do upstream CoreDNS; PostgreSQL mantém 5 residuais (busybox sem correção, gosu de build). Pools externos e latência de disco por contêiner do Engine continuam fora de escopo, com justificativa registrada nos runbooks.
 
+## Atualização de 11/11: painel de ataques
+
+Ferramenta separada (porta 8002, somente localhost) para disparar os oito ataques do catálogo contra o laboratório e observar os alertas correspondentes: força bruta no serviço e no painel, sobrecarga HTTP, indisponibilidade, floods de DNS/SMTP (reusando o job de carga limitada da plataforma), adulteração de configuração e interrupção de serviço. Execução em fila com um ataque por vez, fases, log de eventos ao vivo via SSE, contadores/taxa e verificação final lendo `ALERTS{alertstate="firing"}` do Prometheus — o painel nunca publica métricas e nunca inventa sucesso. Efeitos sempre reversíveis (modo restaurado, serviço reiniciado, arquivo restaurado byte a byte). Operação e roteiro de demonstração em `docs/runbook-painel-ataques.md`; especificação em `docs/superpowers/specs/2026-11-11-attack-panel-design.md` e plano em `docs/superpowers/plans/2026-11-11-attack-panel.md`.
+
+Próximas pendências: relatório ABNT com rastreabilidade ao PDF; roteiro da apresentação; frontend realista do web-demo (sub-projeto seguinte).
+
 ## Limites de escopo
 
 Uma instância de cada serviço, um ambiente local e um canal de e-mail. Sem Kubernetes, multi-tenant ou aprendizado de máquina. Se houver atraso, priorizar os requisitos de entrega e segurança; reduzir métricas recomendadas e refinamento visual. Confirmar com a professora qualquer redução que afete o critério de avaliação.
