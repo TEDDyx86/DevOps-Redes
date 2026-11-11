@@ -8,6 +8,7 @@ import sys
 import tarfile
 import threading
 import time
+import traceback
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
@@ -57,7 +58,16 @@ def atomic_json(path, value):
     try:
         with temporary.open("wb") as stream:
             stream.write(content); stream.flush(); os.fsync(stream.fileno())
-        os.replace(temporary, path)
+        # A concurrent reader on Windows blocks os.replace with PermissionError;
+        # readers hold the file for milliseconds, so retry briefly before failing.
+        for attempt in range(50):
+            try:
+                os.replace(temporary, path)
+                break
+            except PermissionError:
+                if attempt == 49:
+                    raise
+                time.sleep(0.1)
     finally:
         temporary.unlink(missing_ok=True)
 
@@ -307,6 +317,7 @@ class Worker:
                 attempt = {"status": "completed", "at": time.time(), "error": None}
             except (subprocess.SubprocessError, OSError, ValueError, RuntimeError):
                 attempt = {"status": "failed", "at": time.time(), "error": "scanner_failed"}
+                traceback.print_exc()
                 print("Análise indisponível; resultado anterior preservado e nova tentativa em 5 min.", flush=True)
             with self.lock:
                 self.attempts[identity] = attempt

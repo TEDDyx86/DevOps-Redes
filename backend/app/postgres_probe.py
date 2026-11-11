@@ -28,7 +28,7 @@ SELECT numbackends, xact_commit, xact_rollback,
        (SELECT COALESCE(sum(reads), 0) FROM pg_stat_io),
        (SELECT COALESCE(sum(read_time), 0) FROM pg_stat_io),
        (SELECT COALESCE(sum(writes), 0) FROM pg_stat_io),
-       (SELECT COALESCE(sum(write_time), 0) FROM pg_stat_io))
+       (SELECT COALESCE(sum(write_time), 0) FROM pg_stat_io)
 FROM pg_stat_database WHERE datname = current_database()
 """
 GAUGES = {
