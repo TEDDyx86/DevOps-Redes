@@ -6,6 +6,8 @@ Plataforma de monitoramento para o trabalho final de Redes de Computadores e Int
 
 **Etapa 9: recursos dos quatro serviços.** A página Recursos acompanha CPU em núcleos, memória em MiB e leitura/gravação de blocos em KiB/s, com histórico, alertas e e-mails. Um coletor local consulta o Docker; a API recebe somente um snapshot em montagem de leitura. Dados ausentes aparecem como desconhecidos. [Inicialização, unidades e demonstração](docs/runbook-recursos.md).
 
+**Etapa 10: métricas finais.** O PostgreSQL ganhou consultas lentas (pg_stat_statements acima de 100 ms), conexões ativas/ociosas, latência de disco por pg_stat_io e crescimento projetado em GiB/dia. O serviço HTTP monitorado conta tentativas de acesso com token inválido, com alerta próprio. O coletor de recursos publica o espaço livre do volume do projeto, com alerta abaixo de 2 GiB. A configuração de alertas passou de 27 para 31 regras, verificadas com promtool, incluindo quatro cenários sintéticos novos em `backend/tests/fixtures/final-metrics-rules.test.yml`.
+
 Syft/Grype analisam as imagens locais dos quatro serviços, com relatórios com validade explícita, filtros, alertas e e-mail. O painel também acompanha oito configurações por SHA-256, tráfego com referência fixa, login e eventos de autenticação. Achados reais exigem triagem; não há atualização automática de imagens.
 
 **Atualização de 30/10:** o PostgreSQL mantém a versão 17.11 e usa uma imagem derivada com gosu recompilado em Go 1.27.3. A análise passou de 3 críticos/32 altos para zero críticos/altos, com 50 pacotes catalogados e dados preservados. Cinco achados médios/baixos permanecem para triagem. Procedimento, aplicabilidade dos avisos e reversão no [runbook da atualização PostgreSQL](docs/runbook-postgres-remediation.md).

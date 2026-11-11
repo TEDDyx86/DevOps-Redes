@@ -28,6 +28,7 @@ O comando solicita encerramento; o processo conclui a rodada limitada por timeou
 | RAM | Uso menos cache inativo; MiB na interface | Working set, não memória exclusiva de um processo. cgroup v1 prioriza `total_inactive_file`; v2 usa `inactive_file` |
 | Leitura/gravação | Delta dos contadores de bytes de blocos dividido pelo intervalo; KiB/s na interface | Sujeito ao cache e à VM. Não mede espaço ocupado, latência nem IOPS |
 | Limite de memória do Engine | Campo adicional em bytes na API | Pode ser a memória compartilhada da VM, não orçamento individual |
+| Espaço livre do volume do projeto | `shutil.disk_usage` na pasta do projeto, a cada rodada; GiB na interface | É o volume que hospeda o projeto, não o disco virtual interno do Docker; não mede ocupação dos volumes nomeados |
 
 Primeira amostra, troca/reinício do contêiner, contador regressivo ou intervalo inválido interrompem as taxas até duas amostras comparáveis. ID e início da execução são conferidos antes e depois da coleta. Falha de um serviço não remove as medidas dos outros. Zero aparece somente quando há uma medição válida de zero.
 
@@ -41,6 +42,7 @@ Snapshot/medição com mais de 20 s, data futura além de 5 s, arquivo ausente o
 | `RecursoMemoriaElevada` | RAM > 128 MiB; PostgreSQL > 256 MiB | Conferir crescimento, carga e reinícios; o limiar não é o limite da VM |
 | `RecursoIOElevado` | Leitura + gravação > 10 MiB/s | Correlacionar com SQL/fila e atividade; taxa alta não prova disco lento |
 | `RecursosColetaIndisponivel` | Snapshot válido indisponível | Verificar Docker, contexto local e worker; consultar as sondas dos protocolos separadamente |
+| `RecursoDiscoLivreBaixo` | Espaço livre do volume do projeto < 2 GiB | Liberar espaço antes de continuar; métricas, incidentes e e-mails podem deixar de persistir |
 
 São avisos com orçamentos didáticos; não limitam CPU/RAM/I/O dos contêineres. Prometheus avalia as regras, Alertmanager envia e-mails para a caixa local em [8025](http://localhost:8025), e o webhook persiste incidentes. Os 30 s começam quando a condição é observada; também há intervalos de coleta/avaliação e agrupamento. Uma resolução de consumo durante falta de dados não comprova normalização: observe também a coleta e as medidas atuais.
 
@@ -62,7 +64,7 @@ O worker usa somente o endpoint local do contexto Docker atual: named pipe Windo
 
 A API monta `.runtime/resources` somente para leitura em `/etc/aularedes/resources`, sem socket Docker. `/api/resources` exige sessão e aceita apenas serviços/períodos fixos; `/metrics` usa labels limitadas a serviço/métrica, sem IDs nem caminhos. O snapshot depende da integridade do host e do usuário local com acesso ao Docker: não é uma fonte assinada contra adulteração pelo administrador do computador.
 
-Latência de disco, espaço livre do host, IOPS não fornecidas pelo Engine, pools e consultas SQL lentas permanecem fora desta entrega. O tamanho do banco já possui métrica SQL própria.
+Latência de disco por contêiner, IOPS não fornecidas pelo Engine e pools externos permanecem fora desta entrega. O tamanho do banco já possui métrica SQL própria; a latência de disco do PostgreSQL vem de `pg_stat_io` e está documentada no [runbook PostgreSQL](runbook-postgres.md). O espaço livre do volume do projeto é medido a cada rodada do coletor e aparece na página Recursos.
 
 ## Referências técnicas
 

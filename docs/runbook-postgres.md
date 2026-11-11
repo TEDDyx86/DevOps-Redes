@@ -10,9 +10,12 @@ Abra http://localhost:8000/#postgres. A coleta ocorre a cada ciclo de aproximada
 
 - **Disponibilidade SQL:** conexão autenticada e `SELECT 1` bem-sucedidos.
 - **Latência:** abertura da conexão e execução de `SELECT 1`; não é p95 nem duração média das queries de aplicação.
-- **Conexões:** `pg_stat_database.numbackends` do banco `lab_network`. O denominador é `max_connections` do cluster dedicado, incluindo seus slots reservados; não representa capacidade útil restante.
+- **Conexões:** `pg_stat_database.numbackends` do banco `lab_network`. O denominador é `max_connections` do cluster dedicado, incluindo seus slots reservados; não representa capacidade útil restante. O detalhamento separa backends ativos (executando consulta) e ociosos em `pg_stat_activity`.
 - **Commits e rollbacks/s:** taxas dos contadores do banco, incluindo monitoramento e carga. Rollback intencional não é necessariamente falha de consulta.
 - **Comandos SQL/s:** taxa de `calls` do `pg_stat_statements`, limitada ao usuário `lab_workload`, incluindo comandos de controle de transação rastreados pela extensão.
+- **Consultas lentas:** comandos do `lab_workload` com `mean_exec_time` acima de 100 ms em `pg_stat_statements`. O limiar é didático; a carga do laboratório costuma ficar muito abaixo dele.
+- **Latência de disco:** média entre amostras de `tempo ÷ operações` dos contadores de `pg_stat_io` do cluster (leitura e gravação separadas). Reflete o I/O de blocos de dados vistos pelo PostgreSQL, não a latência física do volume.
+- **Crescimento:** taxa de variação de `pg_database_size` projetada para GiB/dia sobre a última hora; amostras curtas ou reinícios deixam o campo desconhecido.
 - **Tamanho:** `pg_database_size`, exibido em MiB, sem inventar crescimento anterior à instalação.
 
 O gerador lê e atualiza uma tabela fixa de 1.000 registros a cada 2 s. A cada cinco transações, uma é desfeita propositalmente. Não há crescimento ilimitado de registros. Estatísticas do PostgreSQL são atualizadas de forma assíncrona e podem atrasar um ciclo.
@@ -58,4 +61,8 @@ O roteiro verifica métricas, privilégios, parada real, independência do HTTP,
 
 ## Limites
 
-A página [Recursos](http://localhost:8000/#resources) complementa o monitor SQL com CPU, memória e I/O de blocos do contêiner. [Unidades e limites](runbook-recursos.md). Latência de disco, espaço livre do host, pools de conexão e contagem de cada consulta lenta ainda exigem instrumentação complementar. Não confundir SQL respondendo com aplicação saudável em todas as consultas.
+A página [Recursos](http://localhost:8000/#resources) complementa o monitor SQL com CPU, memória e I/O de blocos do contêiner. [Unidades e limites](runbook-recursos.md). Não há pool de conexões externo no laboratório; a decomposição ativo/ocioso em `pg_stat_activity` é a visão disponível. A contagem de consultas lentas é agregada por comando no `pg_stat_statements` e não lista cada execução individual. Não confundir SQL respondendo com aplicação saudável em todas as consultas.
+
+## Alertas de consultas lentas e disco
+
+`PostgreSQLConsultasLentas` (atenção, 30 s) dispara quando existem comandos do laboratório com execução média acima de 100 ms. `PostgreSQLDiscoLento` (atenção, 30 s) dispara quando a latência média de leitura ou gravação de `pg_stat_io` excede 50 ms. Não há injetor de carga lenta nem dados sintéticos: a carga real do laboratório opera bem abaixo dos limiares. Para demonstrar o caminho do alerta, reduza temporariamente o limiar de 100 ms (`SLOW_MILLISECONDS`) no coletor, reconstrua a API e restaure o valor após a verificação. Ambos os alertas exigem estatísticas atualizadas; sem coleta, permanecem silenciosos e os campos aparecem como desconhecidos. Os cenários sintéticos das regras ficam isolados em `backend/tests/fixtures/final-metrics-rules.test.yml`, executados com `promtool test rules`, sem publicar dados no Prometheus do laboratório.

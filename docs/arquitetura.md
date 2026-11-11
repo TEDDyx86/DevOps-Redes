@@ -23,7 +23,7 @@ Login e sessões usam `security.sqlite` no volume de incidentes, independente do
 
 Middleware exige sessão nos dados e controles; health, métricas e webhook possuem acesso próprio. Uvicorn da API ignora proxy headers. O limitador reserva tentativas atomicamente em orçamento de 60 s separado do histórico: cinco falhas por IP ou dez por conta impedem novos logins até a janela liberar. O histórico é limitado a 10.000 eventos/7 dias; contadores persistentes e agregação dos bloqueios por segundo sobrevivem à limpeza.
 
-Prometheus coleta `security_auth_attempts_total`, `security_auth_failures_recent` e `security_auth_blocked_recent` sem rótulos de identidade. O alerta `AutenticacaoSuspeita` confirma o limiar por 10 s e usa o mesmo canal de incidentes/e-mails. A interface Segurança lê eventos autenticados da API. Integridade de arquivos e vulnerabilidades já possuem monitores próprios; autenticação dos serviços monitorados permanece pendente.
+Prometheus coleta `security_auth_attempts_total`, `security_auth_failures_recent` e `security_auth_blocked_recent` sem rótulos de identidade. O alerta `AutenticacaoSuspeita` confirma o limiar por 10 s e usa o mesmo canal de incidentes/e-mails. A interface Segurança lê eventos autenticados da API. O serviço HTTP de demonstração tem contador próprio em seu `/metrics`: `demo_auth_attempts_total` distingue aceitações de falhas de token em `POST /mode`, e o alerta `AutenticacaoServicoSuspeita` confirma cinco falhas em um minuto por 30 s. Integridade de arquivos e vulnerabilidades possuem monitores próprios.
 
 ## Referência de tráfego
 
@@ -67,7 +67,7 @@ O monitor se conecta com `lab_monitor`, executa `SELECT 1` e lê as estatística
 
 Prometheus armazena séries `postgres_*`; `/api/postgres` fornece o detalhe para o frontend. Falha SQL não é confundida com ausência de coleta: sonda concluída com erro é crítica, enquanto amostra com mais de 20 s é desconhecida. Estatísticas correntes são ocultadas quando o banco cai ou a coleta detalhada falha. A visão geral combina os estados dos dois serviços, sem deixar HTTP saudável esconder PostgreSQL indisponível.
 
-O runbook PostgreSQL descreve os limites de cada métrica. QPS mede comandos do usuário de laboratório; commits e rollbacks são contadores globais do banco e incluem monitoramento. A latência SQL é conexão + SELECT 1, não p95. CPU, memória e I/O de blocos são coletados pelo monitor de recursos descrito abaixo; latência de disco, pools e consultas lentas permanecem pendentes.
+O runbook PostgreSQL descreve os limites de cada métrica. QPS mede comandos do usuário de laboratório; commits e rollbacks são contadores globais do banco e incluem monitoramento. A latência SQL é conexão + SELECT 1, não p95. CPU, memória e I/O de blocos são coletados pelo monitor de recursos descrito abaixo. Consultas lentas do `pg_stat_statements` (média acima de 100 ms), decomposição ativo/ocioso em `pg_stat_activity`, latência de leitura/gravação de `pg_stat_io` e crescimento projetado do banco completam as séries `postgres_*`; sem estatística atual, todos aparecem como desconhecidos.
 
 ## Recursos dos quatro serviços
 
@@ -84,9 +84,9 @@ flowchart LR
 
 O worker usa SDK Docker em venv própria, com dependências fixadas por hash. Somente o host acessa o named pipe/socket local. A API não recebe socket nem SDK e lê um documento normalizado de até 64 KiB, com quatro identidades fixas. Consulta da Engine, subprocessos e leituras possuem limites de tempo/tamanho; a medição confere ID/início antes e depois. A montagem contém somente snapshots/controle do coletor, sem estatísticas raw nem segredos.
 
-CPU usa delta do tempo CPU por intervalo real (núcleos equivalentes); memória desconta cache inativo; I/O usa deltas de bytes de blocos. Primeiro ponto, reinício e counters/intervalos inválidos deixam taxas ausentes. Cada campo possui disponibilidade própria; falha de um contêiner não invalida os demais. Depois de 20 s sem medição atual, a API omite gauges de consumo e a UI mostra desconhecido. Histórico mascara por disponibilidade e `up` da API; medidas atuais não dependem da consulta de histórico.
+CPU usa delta do tempo CPU por intervalo real (núcleos equivalentes); memória desconta cache inativo; I/O usa deltas de bytes de blocos. Primeiro ponto, reinício e counters/intervalos inválidos deixam taxas ausentes. Cada campo possui disponibilidade própria; falha de um contêiner não invalida os demais. Depois de 20 s sem medição atual, a API omite gauges de consumo e a UI mostra desconhecido. O snapshot do schema 2 acrescenta o espaço livre do volume do projeto (`service_resource_host_free_bytes`/`_total_bytes`), medido por `shutil.disk_usage` a cada rodada; sem o bloco, o gauge fica ausente em vez de zerar. Histórico mascara por disponibilidade e `up` da API; medidas atuais não dependem da consulta de histórico.
 
-`/api/resources` exige sessão e filtros fixos de serviço/período. Métricas `service_resource_*` têm labels limitadas a serviço/métrica, sem IDs ou caminhos. Quatro regras de atenção confirmam CPU/RAM/I/O acima do orçamento ou coleta ausente por 30 s. São limiares didáticos, sem impor restrições aos contêineres. O limite de memória da Engine pode representar a VM compartilhada; I/O não mede ocupação, latência ou IOPS ausentes. [Unidades, operação e demonstração](runbook-recursos.md).
+`/api/resources` exige sessão e filtros fixos de serviço/período. Métricas `service_resource_*` têm labels limitadas a serviço/métrica, sem IDs ou caminhos. Quatro regras de atenção confirmam CPU/RAM/I/O acima do orçamento ou coleta ausente por 30 s, e uma quinta confirma espaço livre abaixo de 2 GiB no volume do projeto. São limiares didáticos, sem impor restrições aos contêineres. O limite de memória da Engine pode representar a VM compartilhada; I/O não mede ocupação, latência ou IOPS ausentes. [Unidades, operação e demonstração](runbook-recursos.md).
 
 ## Significado dos indicadores
 

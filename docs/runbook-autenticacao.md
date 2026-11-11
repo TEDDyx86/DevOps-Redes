@@ -27,7 +27,20 @@ O orçamento de tentativas é reservado atomicamente antes da verificação de s
 
 Eventos registram horário, usuário informado, IP da conexão e resultado: entrada autorizada, credencial inválida, bloqueio ou saída. Nunca incluem senha, hash, cookie ou CSRF. Prometheus recebe contadores por resultado e o maior número de falhas recentes por IP/conta, sem rótulos com identidade.
 
-A seção **Acesso ao painel** da aba [Segurança](http://localhost:8000/#security) acompanha autenticação da plataforma. Ela não representa detecção de força bruta em PostgreSQL, DNS ou SMTP. A mesma aba apresenta agora volume de tráfego dos quatro serviços; autenticação dos serviços, hashes de configuração e vulnerabilidades permanecem pendentes.
+A seção **Acesso ao painel** da aba [Segurança](http://localhost:8000/#security) acompanha autenticação da plataforma. Ela não representa detecção de força bruta em PostgreSQL, DNS ou SMTP. A mesma aba apresenta agora volume de tráfego dos quatro serviços; hashes de configuração e vulnerabilidades têm monitores próprios na mesma aba.
+
+## Autenticação do serviço monitorado
+
+O serviço HTTP de demonstração também tem superfície de autenticação: `POST /mode` exige `X-Lab-Token`. Tentativas com token inválido são contadas por `demo_auth_attempts_total{path="/mode",result="failed"}` em `/metrics` do próprio serviço, coletado pelo job `web-demo` do Prometheus. O alerta `AutenticacaoServicoSuspeita` (atenção) dispara com cinco ou mais falhas em um minuto, mantidas por 30 segundos, e envia e-mail à caixa local.
+
+Acessos normais nunca contam como falha: o painel muda o modo pela API, que envia o token no servidor. Demonstração direta do contador:
+
+```powershell
+5..1 | ForEach-Object { Invoke-WebRequest -Method Post -Uri http://localhost:8001/mode -Body '{"mode":"slow"}' -ContentType "application/json" -Headers @{"X-Lab-Token"="errado"} -SkipHttpErrorCheck | Out-Null }
+docker compose exec prometheus sh -c "wget -qO- http://web-demo:8001/metrics" | Select-String demo_auth
+```
+
+Cada tentativa rejeitada incrementa o contador; o alerta confirma após a janela. Limitações: DNS e SMTP de laboratório não têm autenticação própria (CoreDNS sem AUTH; o SMTP aceita por endereço de destino), e o PostgreSQL autentica em nível de conexão — falhas de credencial SQL aparecem como sonda indisponível e não como evento de força bruta. Esse é o mesmo isolamento de rótulos do restante da plataforma: contadores sem identidade de origem.
 
 ## Demonstrar alerta e recuperação
 
