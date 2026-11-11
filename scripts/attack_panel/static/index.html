@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel de Ataques — Laboratório AulaRedes</title>
+<link rel="stylesheet" href="/panel.css">
+</head>
+<body>
+<header>
+  <h1>Painel de Ataques</h1>
+  <p class="sub">Ferramenta local do laboratório AulaRedes (127.0.0.1). Os efeitos geram alertas no
+  <a href="http://localhost:8000" target="_blank" rel="noreferrer">painel de monitoramento</a>.</p>
+</header>
+<main>
+  <section>
+    <h2>Catálogo</h2>
+    <div id="ataques" class="grid"></div>
+  </section>
+  <section>
+    <h2>Execução</h2>
+    <div id="atual"></div>
+    <div id="fila"></div>
+    <div id="historico"></div>
+  </section>
+  <section>
+    <h2>Log de eventos</h2>
+    <pre id="log-box" aria-live="polite"></pre>
+  </section>
+</main>
+<script src="/panel.js"></script>
+</body>
+</html>
