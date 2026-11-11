@@ -33,11 +33,10 @@ A seção **Acesso ao painel** da aba [Segurança](http://localhost:8000/#securi
 
 O serviço HTTP de demonstração também tem superfície de autenticação: `POST /mode` exige `X-Lab-Token`. Tentativas com token inválido são contadas por `demo_auth_attempts_total{path="/mode",result="failed"}` em `/metrics` do próprio serviço, coletado pelo job `web-demo` do Prometheus. O alerta `AutenticacaoServicoSuspeita` (atenção) dispara com cinco ou mais falhas em um minuto, mantidas por 30 segundos, e envia e-mail à caixa local.
 
-Acessos normais nunca contam como falha: o painel muda o modo pela API, que envia o token no servidor. Demonstração direta do contador:
+Acessos normais nunca contam como falha: o painel muda o modo pela API, que envia o token no servidor. Demonstração direta do contador (o `Invoke-WebRequest` do Windows PowerShell 5.1 não tem `-SkipHttpErrorCheck` e o `curl.exe` corrompe o JSON com aspas; o script usa a biblioteca padrão):
 
 ```powershell
-5..1 | ForEach-Object { Invoke-WebRequest -Method Post -Uri http://localhost:8001/mode -Body '{"mode":"slow"}' -ContentType "application/json" -Headers @{"X-Lab-Token"="errado"} -SkipHttpErrorCheck | Out-Null }
-docker compose exec prometheus sh -c "wget -qO- http://web-demo:8001/metrics" | Select-String demo_auth
+.\.venv\Scripts\python.exe scripts/demo_auth_failures.py
 ```
 
 Cada tentativa rejeitada incrementa o contador; o alerta confirma após a janela. Limitações: DNS e SMTP de laboratório não têm autenticação própria (CoreDNS sem AUTH; o SMTP aceita por endereço de destino), e o PostgreSQL autentica em nível de conexão — falhas de credencial SQL aparecem como sonda indisponível e não como evento de força bruta. Esse é o mesmo isolamento de rótulos do restante da plataforma: contadores sem identidade de origem.

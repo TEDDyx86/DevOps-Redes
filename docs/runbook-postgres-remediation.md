@@ -16,7 +16,7 @@ A [política de segurança do gosu](https://github.com/tianon/gosu/blob/1.19/SEC
 
 O Compose constrói `aularedes-postgres:17.11-gosu1.19-go1.27.3` usando somente `infra/postgres-image/` como contexto. O Dockerfile mantém a mesma base PostgreSQL, seu entrypoint e configurações. Recompila o mesmo código gosu 1.19 e preserva suas dependências, verificadas por go.sum. Copia somente binário e licença para o estágio final, sem compilador, fonte ou credenciais.
 
-- Base: `postgres:17.11-alpine3.24@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b`.
+- Base: `postgres:17.11-alpine3.24@sha256:e5d2edd28b1f8d40a0a6c0c9cdc545b19b56a0d5d88f94bc11a97d970d4700d0` (atualizado em 11/11; o digest original de 30/10 era `sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b`).
 - Compilador: `golang:1.27.3-alpine3.24@sha256:d200d2dd76b03a99b52651fd1325aff7dcd35422c35c01bac56571b0507f3deb`.
 - Fonte: tag gosu 1.19, arquivo SHA-256 `cd9719b775dbfedae53923c9b0dc792b66d42c51e0b36652ed6f747fbadc0164`, conferido por `ADD --checksum`.
 - `CGO_ENABLED=0`, `GOTOOLCHAIN=local`, módulos sem atualização implícita. Não é usado `-s`, para preservar a inspeção Go. A versão funcional continua `1.19`; o módulo principal é registrado como `(devel)` por ser uma compilação a partir do arquivo-fonte, enquanto as versões das dependências e do Go permanecem no binário.
@@ -79,6 +79,16 @@ docker compose start api
 ```
 
 Caso a reversão ou sua validação falhe, manter a API parada e investigar antes de permitir novas escritas. O override deve continuar sendo usado enquanto a reversão for necessária; um `compose up` sem ele voltará à imagem definida no Compose principal. A análise da imagem antiga voltará a apresentar seus achados.
+
+## Atualização de 11/11: pacotes Alpine
+
+A base de avisos de 11/11 classificou a imagem em execução com **1 crítico** ([CVE-2026-4738](https://avd.aquasec.com/), zlib 1.3.2-r1) e **12 altos** (`krb5-libs` 1.22.2-r1, `libxslt` 1.1.43-r3), todos com versão corrigida já publicada no repositório Alpine 3.24. Um `docker compose build --pull` não resolveu: o digest mais recente do upstream `postgres:17.11-alpine3.24` ainda trazia as mesmas versões. A correção foi aplicada no Dockerfile fixando as versões publicadas no estágio final:
+
+```dockerfile
+RUN apk add --no-cache zlib=1.4-r0 krb5-libs=1.22.3-r0 libxslt=1.1.43-r4
+```
+
+O procedimento desta execução foi mais direto que o de 30/10 porque não houve mudança da versão SQL nem do esquema: contêineres que referenciavam imagens não exportáveis (causa raiz dos `scanner_failed` anteriores) foram recriados a partir das tags atuais com `docker compose up -d --no-deps --force-recreate`, com os dados preservados no volume nomeado (`SELECT count(*) = 1000` em `lab_items`, papéis e extensão conferidos). A imagem nova (`87ad9221…`) foi reanalisada pelo worker: **0 críticos / 0 altos / 4 médios / 1 baixo** — os mesmos cinco residuais do procedimento de 30/10, sem supressões. A reversão segue válida por imagem (reaplicar a imagem anterior no mesmo volume); nesta execução não foi necessária.
 
 ## Resultado e limites
 
