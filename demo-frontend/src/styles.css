@@ -1,0 +1,84 @@
+@import "tailwindcss";
+@import "@fontsource/press-start-2p";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/700.css";
+
+@theme {
+  --color-bg: #05060f;
+  --color-panel: #0a0b14;
+  --color-panel-edge: #1b1f3a;
+  --color-magenta: #ff2fd6;
+  --color-cyan: #00e5ff;
+  --color-violet: #8b5cf6;
+  --color-amber: #ffb400;
+  --color-parchment: #e8e6f0;
+  --font-pixel: "Press Start 2P", "IBM Plex Mono", monospace;
+  --font-mono: "IBM Plex Mono", monospace;
+}
+
+html,
+body {
+  background: var(--color-bg);
+}
+
+body {
+  color: var(--color-parchment);
+  font-family: var(--font-mono);
+}
+
+.crt-scanlines {
+  position: relative;
+}
+
+.crt-scanlines::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0 2px,
+    rgba(2, 3, 10, 0.35) 2px 4px
+  );
+}
+
+.crt-flicker {
+  animation: crt-flicker 6s infinite steps(1);
+}
+
+@keyframes crt-flicker {
+  0%, 91%, 94%, 96%, 100% { opacity: 1; }
+  93% { opacity: 0.86; }
+  97% { opacity: 0.92; }
+}
+
+.glow-magenta {
+  text-shadow: 0 0 6px rgba(255, 47, 214, 0.8), 0 0 24px rgba(255, 47, 214, 0.4);
+}
+
+.glow-cyan {
+  text-shadow: 0 0 6px rgba(0, 229, 255, 0.8), 0 0 24px rgba(0, 229, 255, 0.35);
+}
+
+.dialog-rpg {
+  border: 4px double #ffffff;
+  background: rgba(5, 6, 15, 0.94);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.8), 0 0 18px rgba(139, 92, 246, 0.35);
+}
+
+.synth-grid {
+  background-image:
+    linear-gradient(rgba(139, 92, 246, 0.22) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139, 92, 246, 0.22) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.marquee-track {
+  animation: marquee 18s linear infinite;
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
