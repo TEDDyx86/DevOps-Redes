@@ -95,3 +95,50 @@ def test_verificador_tenta_ate_conseguir_e_nunca_inventa_sucesso(monkeypatch):
     resultado = server.build_verifier()(["TrafegoAnormal"], lambda: False)
     assert resultado == {"available": False, "fired": [], "missing": ["TrafegoAnormal"]}
     assert len(tentativas) == 6
+
+
+def test_verificador_repete_ate_o_alerta_disparar(monkeypatch):
+    tentativas = []
+
+    def resposta():
+        if len(tentativas) < 3:
+            return {"status": "success", "data": {"result": []}}
+        return {"status": "success", "data": {"result": [{"metric": {"alertname": "AutenticacaoServicoSuspeita", "alertstate": "firing"}}]}}
+
+    class ClientFalso:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def get(self, url, params=None):
+            tentativas.append(1)
+            return httpx.Response(200, json=resposta(), request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(server.runners, "make_client", lambda: ClientFalso())
+    monkeypatch.setattr(server.time, "sleep", lambda segundos: None)
+    resultado = server.build_verifier()(["AutenticacaoServicoSuspeita"], lambda: False)
+    assert resultado == {"available": True, "fired": ["AutenticacaoServicoSuspeita"], "missing": []}
+    assert len(tentativas) == 3
+
+
+def test_verificador_para_quando_a_execucao_foi_interrompida(monkeypatch):
+    tentativas = []
+
+    class ClientFalso:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def get(self, url, params=None):
+            tentativas.append(1)
+            return httpx.Response(200, json={"status": "success", "data": {"result": []}}, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(server.runners, "make_client", lambda: ClientFalso())
+    monkeypatch.setattr(server.time, "sleep", lambda segundos: None)
+    resultado = server.build_verifier()(["TrafegoAnormal"], lambda: len(tentativas) >= 1)
+    assert resultado == {"available": True, "fired": [], "missing": ["TrafegoAnormal"]}
+    assert len(tentativas) == 1

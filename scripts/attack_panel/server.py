@@ -23,15 +23,19 @@ def build_verifier():
     def verify(expected, cancelled=lambda: False):
         if not expected:
             return {"available": True, "fired": [], "missing": []}
+        ultimo = verification.verify(expected, None)
         for attempt in range(VERIFY_ATTEMPTS):
             try:
                 with runners.make_client() as client:
                     firing = verification.firing_alerts(client, runners.PROMETHEUS_BASE)
-                return verification.verify(expected, firing)
+                ultimo = verification.verify(expected, firing)
             except Exception:
-                if cancelled() or attempt == VERIFY_ATTEMPTS - 1:
-                    return verification.verify(expected, None)
+                ultimo = verification.verify(expected, None)
+            if ultimo["fired"] or cancelled():
+                return ultimo
+            if attempt < VERIFY_ATTEMPTS - 1:
                 time.sleep(VERIFY_INTERVAL)
+        return ultimo
     return verify
 
 
