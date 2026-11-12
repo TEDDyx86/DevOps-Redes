@@ -46,6 +46,8 @@ services:
     command: ["uvicorn", "demo.main:app", "--host", "0.0.0.0", "--port", "8001"]
     environment:
       LAB_TOKEN: ${LAB_TOKEN:?Execute python scripts/configure.py}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Execute python scripts/configure.py}
       HTTP_CONFIG_FILE: /etc/aularedes/runtime/http.json
     volumes: ["./infra:/etc/aularedes/runtime:ro"]
     ports: ["127.0.0.1:8001:8001"]

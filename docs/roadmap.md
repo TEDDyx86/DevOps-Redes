@@ -40,6 +40,12 @@ Ferramenta separada (porta 8002, somente localhost) para disparar os oito ataque
 
 Próximas pendências: relatório ABNT com rastreabilidade ao PDF; roteiro da apresentação; frontend realista do web-demo (sub-projeto seguinte).
 
+## Atualização de 12/11: frontend realista do web-demo (WORKBYTE)
+
+O web-demo (porta 8001) ganhou frontend próprio — landing 8-bit futurista (CRT synthwave: fundo preto-azulado, tipografia Press Start 2P, acentos neon magenta/ciano/violeta, scanlines, diálogos estilo RPG) → tela de login → painel protegido. Fluxo de aplicação real para a apresentação: hero pixel-art em SVG, marquee estilo VHS, cards de features e footer 1-bit. Login real com `POST /login` novo no `demo/main.py`, reutilizando `ADMIN_USERNAME`/`ADMIN_PASSWORD` do `.env` com sessão em cookie assinado por HMAC-SHA256 (`demo/session.py`); `/painel` exibe SINAL (`/health`, poll 3 s — vira `✖ SIGNAL LOST` com glitch quando o ataque de modo offline derruba o serviço), MODO (`/mode`), CONTADORES (`/metrics` parseado — `AGUARDANDO DADOS` quando vazio, nunca zero falsificado) e CONSOLE DE TRABALHO (`/work` com latência medida no browser). Os contratos `GET /health`, `GET /work`, `GET /metrics`, `GET/POST /mode` ficaram byte a byte e o middleware intocado; estáticos buildados em `demo/static/` por estágio novo do Dockerfile, servidos com fallback SPA. Desvios registrados: o item do shoogle `@cult-ui/feature-carousel` é Next.js-only e foi substituído pelo `FeatureGrid` previsto no plano; a arte do hero foi desenhada em SVG próprio (geração de imagem indisponível). Testes: suíte backend 213 passed/1 skipped, frontend vitest 9 passed, builds limpos, validação ponta a ponta com script em `tmp/validate_demo_frontend.py`. Especificação em `docs/superpowers/specs/2026-11-12-demo-frontend-design.md` e plano em `docs/superpowers/plans/2026-11-12-demo-frontend.md`.
+
+Próximas pendências: relatório ABNT com rastreabilidade ao PDF; roteiro da apresentação.
+
 ## Limites de escopo
 
 Uma instância de cada serviço, um ambiente local e um canal de e-mail. Sem Kubernetes, multi-tenant ou aprendizado de máquina. Se houver atraso, priorizar os requisitos de entrega e segurança; reduzir métricas recomendadas e refinamento visual. Confirmar com a professora qualquer redução que afete o critério de avaliação.
