@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, LockKeyhole, Network, RefreshCw } from "lucide-react";
 import App from "./App";
+import Landing from "./Landing";
 import { APIError, request, setCSRFToken } from "./api";
 
 interface Session {
@@ -16,6 +17,7 @@ export default function Auth() {
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [view, setView] = useState<"landing" | "login">("landing");
   const generation = useRef(0);
   const mutating = useRef(false);
 
@@ -128,6 +130,7 @@ export default function Auth() {
         authError={error}
       />
     );
+  if (view === "landing") return <Landing onEnter={() => setView("login")} />;
   return (
     <main className="login-shell">
       <section className="login-context" aria-label="AulaRedes">
