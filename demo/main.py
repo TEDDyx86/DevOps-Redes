@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import os
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
 
@@ -13,6 +14,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Counter, H
 from pydantic import BaseModel
 from .config import load_http_config
 from .session import SESSION_COOKIE, SESSION_TTL_SECONDS, make_session, read_session
+from .attacks.api import build_engine, register as register_attacks
 
 
 class Mode(BaseModel):
@@ -25,7 +27,14 @@ class LoginRequest(BaseModel):
 
 
 def create_demo(token=None,runtime_config=None, admin_username=None, admin_password=None, static_path=None):
-    app = FastAPI(title="HTTP de demonstração")
+    engine = build_engine()
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        yield
+        engine.stop()
+
+    app = FastAPI(title="HTTP de demonstração", lifespan=lifespan)
     app.state.mode = "normal"
     config=runtime_config or load_http_config()
     token = token if token is not None else os.getenv("LAB_TOKEN", "")
@@ -97,6 +106,8 @@ def create_demo(token=None,runtime_config=None, admin_username=None, admin_passw
     def logout(response: Response):
         response.delete_cookie(SESSION_COOKIE, path="/")
         return {"authenticated": False}
+
+    register_attacks(app, token, engine)
 
     if static_dir.exists() and (static_dir / "assets").exists():
         app.mount("/assets", StaticFiles(directory=static_dir / "assets"), name="demo-assets")
