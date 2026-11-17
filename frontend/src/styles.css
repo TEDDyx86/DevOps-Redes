@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   font-family: "IBM Plex Mono", "Segoe UI", monospace;
   color: #e8e6f0;
   background: #05060f;
@@ -61,7 +61,7 @@ button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 select:focus-visible {
-  outline: 3px solid oklch(66% 0.15 295);
+  outline: 3px solid #00e5ff;
   outline-offset: 3px;
 }
 h1,
@@ -116,8 +116,8 @@ small {
 }
 .sidebar {
   width: 238px;
-  background: oklch(25% 0.018 285);
-  color: oklch(79% 0.012 285);
+  background: #e8e6f0;
+  color: #6b7290;
   position: fixed;
   inset: 0 auto 0 0;
   display: flex;
@@ -178,7 +178,7 @@ small {
   align-items: center;
   gap: 10px;
   padding: 0 10px 30px;
-  color: oklch(98% 0.005 285);
+  color: #0a0b14;
   font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.7px;
@@ -191,7 +191,7 @@ small {
   font-size: 8px;
   letter-spacing: 2px;
   font-weight: 500;
-  color: oklch(69% 0.02 285);
+  color: #c9cfe4;
   margin-top: 5px;
 }
 .brand-mark {
@@ -199,14 +199,14 @@ small {
   place-items: center;
   width: 35px;
   height: 38px;
-  background: oklch(59% 0.19 295);
+  background: #00e5ff;
   border-radius: 9px;
 }
 .workspace {
   display: flex;
   align-items: center;
   gap: 10px;
-  border: 1px solid oklch(36% 0.019 285);
+  border: 1px solid #c9cfe4;
   border-radius: 8px;
   padding: 12px 10px;
   margin-bottom: 30px;
@@ -216,7 +216,7 @@ small {
   place-items: center;
   width: 30px;
   height: 32px;
-  background: oklch(32% 0.02 285);
+  background: #c9cfe4;
   border-radius: 5px;
 }
 .workspace strong,
@@ -226,25 +226,25 @@ small {
 .workspace strong {
   font-size: 12px;
   font-weight: 550;
-  color: oklch(94% 0.006 285);
+  color: #141830;
 }
 .workspace small {
   font-size: 10px;
-  color: oklch(67% 0.018 285);
+  color: #9aa3c0;
   margin-top: 4px;
 }
 .workspace-dot {
   height: 6px;
   width: 6px;
   border-radius: 50%;
-  background: oklch(73% 0.12 165);
+  background: #7ff0d0;
   margin-left: auto;
 }
 .nav-caption {
   font-size: 9px;
   letter-spacing: 1.5px;
   font-weight: 600;
-  color: oklch(64% 0.016 285);
+  color: #9aa3c0;
   padding: 0 12px;
   margin-bottom: 12px;
 }
@@ -259,20 +259,20 @@ small {
   margin: 3px 0;
 }
 .nav-item:hover {
-  background: oklch(30% 0.02 285);
-  color: oklch(96% 0.004 285);
+  background: #c9cfe4;
+  color: #0d1020;
 }
 .nav-item.active {
-  background: oklch(36% 0.06 295);
-  color: oklch(91% 0.055 295);
+  background: #b39cff;
+  color: rgba(139, 92, 246, 0.2);
 }
 .nav-item.active svg {
-  color: oklch(79% 0.11 295);
+  color: #8b5cf6;
 }
 .nav-count {
   margin-left: auto;
-  background: oklch(47% 0.12 25);
-  color: oklch(96% 0.02 25);
+  background: #ff5470;
+  color: rgba(255, 84, 112, 0.12);
   border-radius: 4px;
   padding: 2px 6px;
   font-size: 10px;
@@ -286,13 +286,13 @@ small {
   gap: 12px;
   align-items: center;
   padding: 12px;
-  color: oklch(67% 0.012 285);
+  color: #9aa3c0;
   font-size: 11px;
 }
 .planned-nav > span {
   margin-left: auto;
   font-size: 8px;
-  color: oklch(66% 0.014 285);
+  color: #9aa3c0;
 }
 .sidebar-bottom {
   margin-top: auto;
@@ -301,26 +301,26 @@ small {
 .version-pill {
   font-size: 8px;
   letter-spacing: 1.2px;
-  color: oklch(72% 0.012 285);
+  color: #c9cfe4;
   display: flex;
   align-items: center;
   gap: 9px;
 }
 .version-pill span {
   letter-spacing: 0;
-  background: oklch(34% 0.022 285);
+  background: #c9cfe4;
   padding: 3px 6px;
   border-radius: 3px;
-  color: oklch(86% 0.015 285);
+  color: #2a3050;
 }
 .sidebar-bottom > p {
   font-size: 12px;
   line-height: 1.7;
-  color: oklch(72% 0.012 285);
+  color: #c9cfe4;
   margin: 13px 0 28px;
 }
 .sidebar-author {
-  border-top: 1px solid oklch(36% 0.018 285);
+  border-top: 1px solid #c9cfe4;
   display: flex;
   gap: 10px;
   align-items: center;
@@ -330,8 +330,8 @@ small {
 .avatar {
   display: grid;
   place-items: center;
-  background: oklch(35% 0.035 295);
-  color: oklch(91% 0.03 295);
+  background: #b39cff;
+  color: rgba(139, 92, 246, 0.14);
   height: 30px;
   width: 30px;
   border-radius: 50%;
@@ -346,7 +346,7 @@ small {
 .sidebar-author small {
   font-size: 9px;
   margin-top: 4px;
-  color: oklch(67% 0.012 285);
+  color: #9aa3c0;
 }
 .main-shell {
   width: calc(100% - 238px);
@@ -369,7 +369,7 @@ small {
   color: var(--muted);
 }
 .breadcrumbs strong {
-  color: oklch(38% 0.018 285);
+  color: #c9cfe4;
   font-weight: 500;
 }
 .topbar-right {
@@ -390,11 +390,11 @@ small {
 .environment i {
   height: 5px;
   width: 5px;
-  background: oklch(58% 0.09 164);
+  background: #00e5a8;
   border-radius: 50%;
 }
 .avatar {
-  background: oklch(93% 0.02 295);
+  background: rgba(139, 92, 246, 0.12);
   color: var(--accent);
   height: 29px;
   width: 29px;
@@ -411,7 +411,7 @@ small {
   color: var(--muted);
 }
 .icon-button:hover {
-  background: oklch(94% 0.012 285);
+  background: #141830;
   color: var(--accent);
 }
 main {
@@ -465,7 +465,7 @@ h1 {
   background: transparent;
   font-size: 11px;
   cursor: pointer;
-  color: oklch(36% 0.018 285);
+  color: #c9cfe4;
   height: 100%;
   max-width: 170px;
 }
@@ -485,16 +485,16 @@ h1 {
   padding: 16px 19px;
 }
 .health-strip.ok {
-  background: oklch(97.4% 0.012 165);
-  border-color: oklch(88% 0.034 165);
+  background: rgba(0, 229, 168, 0.1);
+  border-color: rgba(0, 229, 168, 0.16);
 }
 .health-strip.warning {
-  background: oklch(97% 0.025 80);
-  border-color: oklch(88% 0.06 80);
+  background: rgba(255, 180, 0, 0.12);
+  border-color: #ffb400;
 }
 .health-strip.critical {
-  background: oklch(97% 0.015 25);
-  border-color: oklch(87% 0.04 25);
+  background: rgba(255, 84, 112, 0.1);
+  border-color: rgba(255, 84, 112, 0.16);
 }
 .health-icon {
   display: grid;
@@ -508,7 +508,7 @@ h1 {
 }
 .ok .health-icon {
   color: var(--green);
-  border-color: oklch(89% 0.025 164);
+  border-color: rgba(0, 229, 168, 0.14);
 }
 .critical .health-icon {
   color: var(--red);
@@ -538,13 +538,13 @@ h1 {
 .live-dot {
   width: 5px;
   height: 5px;
-  background: oklch(64% 0.01 285);
+  background: #9aa3c0;
   border-radius: 50%;
   display: inline-block;
   flex-shrink: 0;
 }
 .live-dot.connected {
-  background: oklch(52% 0.11 164);
+  background: #00e5a8;
 }
 .metric-strip {
   display: grid;
@@ -572,7 +572,7 @@ h1 {
   margin-bottom: 12px;
 }
 .metric > span svg {
-  color: oklch(65% 0.018 285);
+  color: #9aa3c0;
 }
 .metric > strong {
   font-size: 28px;
@@ -656,7 +656,7 @@ h1 {
   font-size: 9px;
   font-weight: 500;
   color: var(--muted);
-  background: oklch(98% 0.004 285);
+  background: #0a0b14;
   border-block: 1px solid var(--line);
   padding: 10px 16px;
 }
@@ -702,7 +702,7 @@ h1 {
   height: 34px;
   width: 34px;
   border-radius: 7px;
-  background: oklch(95% 0.023 295);
+  background: rgba(139, 92, 246, 0.1);
   color: var(--accent);
 }
 .status {
@@ -715,19 +715,19 @@ h1 {
   white-space: nowrap;
 }
 .status-ok {
-  background: oklch(95% 0.025 164);
+  background: rgba(0, 229, 168, 0.12);
   color: var(--green);
 }
 .status-warning {
-  background: oklch(95% 0.05 80);
+  background: rgba(255, 180, 0, 0.16);
   color: var(--yellow);
 }
 .status-critical {
-  background: oklch(95% 0.025 25);
+  background: rgba(255, 84, 112, 0.12);
   color: var(--red);
 }
 .status-unknown {
-  background: oklch(94% 0.009 285);
+  background: #141830;
   color: var(--muted);
 }
 .collection-note {
@@ -766,7 +766,7 @@ h1 {
   background: var(--accent);
 }
 .chart-panel:nth-child(2) .chart-legend i {
-  background: #328c94;
+  background: #00e5a8;
 }
 .chart {
   height: 207px;
@@ -779,7 +779,7 @@ h1 {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  color: oklch(64% 0.018 285);
+  color: #9aa3c0;
   text-align: center;
   padding: 25px;
 }
@@ -804,12 +804,12 @@ h1 {
   display: flex;
   gap: 13px;
   align-items: flex-start;
-  color: oklch(59% 0.06 165);
+  color: #00c9a0;
 }
 .empty-incidents strong {
   font-size: 11px;
   font-weight: 550;
-  color: oklch(39% 0.02 285);
+  color: #c9cfe4;
 }
 .empty-incidents p {
   font-size: 10px;
@@ -819,10 +819,10 @@ h1 {
   max-width: 340px;
 }
 .lab-invitation {
-  border: 1px solid oklch(89% 0.033 295);
+  border: 1px solid rgba(139, 92, 246, 0.16);
   border-radius: 9px;
   padding: 22px;
-  background: oklch(95% 0.02 295);
+  background: rgba(139, 92, 246, 0.1);
   position: relative;
 }
 .invitation-icon {
@@ -830,7 +830,7 @@ h1 {
   display: grid;
   place-items: center;
   color: var(--accent);
-  background: oklch(91% 0.042 295);
+  background: rgba(139, 92, 246, 0.2);
   width: 37px;
   height: 37px;
   border-radius: 8px;
@@ -864,18 +864,18 @@ h1 {
 }
 .primary {
   background: var(--accent);
-  color: oklch(98% 0.005 295);
+  color: rgba(139, 92, 246, 0.08);
 }
 .primary:hover {
-  background: oklch(45% 0.17 295);
+  background: #00e5ff;
 }
 .secondary {
   background: var(--surface);
   border-color: var(--line);
 }
 .secondary:hover:enabled {
-  background: oklch(95% 0.015 295);
-  border-color: oklch(80% 0.07 295);
+  background: rgba(139, 92, 246, 0.1);
+  border-color: #8b5cf6;
 }
 .lab-invitation .button {
   margin-top: 17px;
@@ -917,12 +917,12 @@ h1 {
   margin-bottom: 16px;
 }
 .notice.error {
-  background: oklch(96% 0.018 25);
+  background: rgba(255, 84, 112, 0.12);
   color: var(--red);
-  border-color: oklch(88% 0.04 25);
+  border-color: rgba(255, 84, 112, 0.16);
 }
 .notice.success {
-  background: oklch(96% 0.018 165);
+  background: rgba(0, 229, 168, 0.12);
   color: var(--green);
 }
 .notice .text-button {
@@ -941,7 +941,7 @@ h1 {
 .incident-symbol {
   display: grid;
   place-items: center;
-  background: oklch(95% 0.03 80);
+  background: rgba(255, 180, 0, 0.12);
   color: var(--yellow);
   width: 31px;
   height: 31px;
@@ -949,11 +949,11 @@ h1 {
 }
 .incident-symbol.critical {
   color: var(--red);
-  background: oklch(95% 0.025 25);
+  background: rgba(255, 84, 112, 0.12);
 }
 .incident-symbol.resolved {
   color: var(--green);
-  background: oklch(95% 0.025 165);
+  background: rgba(0, 229, 168, 0.12);
 }
 .incident-copy {
   min-width: 0;
@@ -1038,7 +1038,7 @@ h1 {
 .token-field input {
   display: block;
   border: 1px solid var(--line);
-  background: oklch(98% 0.004 285);
+  background: #0a0b14;
   border-radius: 6px;
   padding: 11px 12px;
   width: 100%;
@@ -1066,13 +1066,13 @@ h1 {
   width: 40px;
   height: 40px;
   border-radius: 8px;
-  background: oklch(96% 0.009 285);
+  background: #0d1020;
   color: var(--muted);
   flex-shrink: 0;
 }
 .selected .mode-icon {
   color: var(--accent);
-  background: oklch(94% 0.025 295);
+  background: rgba(139, 92, 246, 0.12);
 }
 .mode-row p {
   font-size: 11px;
@@ -1088,7 +1088,7 @@ h1 {
 .current-mode {
   font-size: 8px;
   color: var(--accent);
-  background: oklch(94% 0.03 295);
+  background: rgba(139, 92, 246, 0.12);
   padding: 3px 6px;
   border-radius: 4px;
   margin-left: 7px;
@@ -1116,7 +1116,7 @@ h1 {
 }
 .lab-guide li strong {
   display: block;
-  color: oklch(34% 0.02 285);
+  color: #c9cfe4;
   font-weight: 550;
   margin-bottom: 5px;
 }
@@ -1562,7 +1562,7 @@ h1 {
   font:
     11px/1.7 "IBM Plex Mono",
     monospace;
-  background: oklch(96% 0.008 285);
+  background: #0d1020;
   padding: 9px;
   border-radius: 5px;
   overflow-wrap: anywhere;
@@ -1633,8 +1633,8 @@ h1 {
   grid-template-columns: 1fr 1fr;
 }
 .login-context {
-  background: #24232d;
-  color: #f5f4fa;
+  background: #101326;
+  color: #0a0b14;
   padding: 44px 52px;
   display: flex;
   flex-direction: column;
@@ -1651,7 +1651,7 @@ h1 {
   max-width: 480px;
 }
 .login-story .eyebrow {
-  color: #b5a3ec;
+  color: #8b5cf6;
 }
 .login-story h1 {
   font-size: clamp(32px, 3.3vw, 52px);
@@ -1661,7 +1661,7 @@ h1 {
   margin: 22px 0;
 }
 .login-story p {
-  color: #bbb8c9;
+  color: #9aa3c0;
   font-size: 15px;
   line-height: 1.8;
   max-width: 370px;
@@ -1676,14 +1676,14 @@ h1 {
   font:
     11px "IBM Plex Mono",
     monospace;
-  border: 1px solid #504b62;
+  border: 1px solid #6b7290;
   padding: 9px 12px;
   border-radius: 5px;
-  color: #d8d1ed;
+  color: #c9cfe4;
 }
 .login-footnote {
   font-size: 11px;
-  color: #aaa5bc;
+  color: #9aa3c0;
 }
 .login-form-area {
   display: grid;
@@ -1698,7 +1698,7 @@ h1 {
   display: grid;
   place-items: center;
   color: var(--accent);
-  background: #ece6fa;
+  background: rgba(139, 92, 246, 0.12);
   border-radius: 11px;
   width: 50px;
   height: 50px;
@@ -1756,7 +1756,7 @@ h1 {
   color: var(--muted);
 }
 .login-help strong {
-  color: #454050;
+  color: #2a3050;
   font-weight: 550;
 }
 .login-help code {
