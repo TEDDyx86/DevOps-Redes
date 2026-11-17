@@ -1,6 +1,6 @@
-﻿"""Runners dos ataques: efeitos controlados a partir do host, sempre reversÃ­veis."""
+﻿"""Runners dos ataques: efeitos controlados de dentro do container, sempre reversíveis."""
+import json
 import os
-import subprocess
 import threading
 import time
 import uuid
@@ -11,29 +11,45 @@ import httpx
 
 from demo.attacks.engine import Cancelled
 from demo.attacks import verification
-from scripts.lab_session import authenticate
 
-ROOT = Path(__file__).resolve().parents[2]
-DEMO_BASE = "http://localhost:8011"
-PANEL_BASE = "http://localhost:8000"
-PROMETHEUS_BASE = "http://localhost:9090"
+DEMO_BASE = os.environ.get("DEMO_BASE", "http://web-demo:8001")
+PANEL_BASE = os.environ.get("PANEL_BASE", "http://api:8000")
+PROMETHEUS_BASE = os.environ.get("PROMETHEUS_BASE", "http://prometheus:9090")
+INFRA_ROOT = Path(os.environ.get("INFRA_ROOT", "/etc/aularedes/runtime"))
+DOCKER_SOCKET = os.environ.get("DOCKER_SOCKET", "/var/run/docker.sock")
 
 BURST_INTERVAL = 0.15
 BRUTEFORCE_HOLD = 40
 SOBRECARGA_HOLD = 35
+STOP_GRACE_SECONDS = 15
 
 
 def make_client():
     return httpx.Client(timeout=5, trust_env=False)
 
 
+def docker_client():
+    return httpx.Client(transport=httpx.HTTPTransport(uds=DOCKER_SOCKET),
+                        base_url="http://docker", timeout=30, trust_env=False)
+
+
 def lab_token():
-    values = dict(line.split("=", 1) for line in (ROOT / ".env").read_text(encoding="utf-8").splitlines()
-                  if "=" in line and not line.lstrip().startswith("#"))
-    token = values.get("LAB_TOKEN", "")
+    token = os.environ.get("LAB_TOKEN", "")
     if not token:
-        raise RuntimeError("LAB_TOKEN ausente no .env")
+        raise RuntimeError("LAB_TOKEN ausente no ambiente do container")
     return token
+
+
+def panel_session(client):
+    username = os.environ.get("ADMIN_USERNAME", "admin")
+    password = os.environ.get("ADMIN_PASSWORD", "")
+    if not password:
+        raise RuntimeError("ADMIN_PASSWORD ausente no ambiente do container")
+    response = client.post(PANEL_BASE + "/api/auth/login",
+                           json={"username": username, "password": password})
+    response.raise_for_status()
+    client.headers["X-CSRF-Token"] = response.json()["csrf_token"]
+    return response.json()
 
 
 def _hold(ctx, seconds):
@@ -76,7 +92,7 @@ def bruteforce_servico(ctx, params):
             espera = BURST_INTERVAL - (time.perf_counter() - started)
             if espera > 0:
                 time.sleep(espera)
-    ctx.log("MarÃ© de tentativas concluÃ­da; aguardando janela de 1 minuto e o 'for: 30s' do alerta")
+    ctx.log("Maré de tentativas concluída; aguardando janela de 1 minuto e o 'for: 30s' do alerta")
     _hold(ctx, BRUTEFORCE_HOLD)
 
 
@@ -101,7 +117,7 @@ def bruteforce_painel(ctx, params):
             espera = BURST_INTERVAL - (time.perf_counter() - started)
             if espera > 0:
                 time.sleep(espera)
-    ctx.log("Logins com senha errada concluÃ­dos; aguardando janela de falhas recentes e o 'for: 10s' do alerta")
+    ctx.log("Logins com senha errada concluídos; aguardando janela de falhas recentes e o 'for: 10s' do alerta")
     _hold(ctx, BRUTEFORCE_HOLD)
 
 
@@ -132,7 +148,7 @@ def sobrecarga_http(ctx, params):
             ctx.progress(**snapshot)
             local += 1
             if local % 50 == 0:
-                ctx.log(f"MarÃ© em andamento: {snapshot['requisicoes']} requisiÃ§Ãµes")
+                ctx.log(f"Maré em andamento: {snapshot['requisicoes']} requisições")
 
     clientes = [make_client() for _ in range(workers)]
     try:
@@ -144,7 +160,7 @@ def sobrecarga_http(ctx, params):
             client.close()
     if ctx.cancelled():
         raise Cancelled()
-    ctx.log(f"MarÃ© concluÃ­da: {shared['requisicoes']} requisiÃ§Ãµes; aguardando 'for: 30s' dos alertas")
+    ctx.log(f"Maré concluída: {shared['requisicoes']} requisições; aguardando 'for: 30s' dos alertas")
     _hold(ctx, SOBRECARGA_HOLD)
 
 
@@ -163,24 +179,36 @@ def indisponibilidade_http(ctx, params):
             if restore.status_code == 200:
                 ctx.log("Modo normal restaurado")
             else:
-                ctx.log(f"ATENÃ‡ÃƒO: restauraÃ§Ã£o do modo falhou com HTTP {restore.status_code}; restaurar manualmente")
+                ctx.log(f"ATENÇÃO: restauração do modo falhou com HTTP {restore.status_code}; restaurar manualmente")
 
 
 STOP_ALERTS = {"dns": "DNSIndisponivel", "smtp": "SMTPIndisponivel",
                "web-demo": "HTTPIndisponivel", "postgres": "PostgreSQLIndisponivel"}
 
 
-def _docker_compose(*arguments):
-    flags = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}
-    return subprocess.run(["docker", "compose", *arguments], cwd=str(ROOT), check=True,
-                          capture_output=True, timeout=90, **flags)
+def _container_id(client, alvo):
+    filtros = json.dumps({"label": [f"com.docker.compose.service={alvo}"]})
+    response = client.get("/containers/json", params={"filters": filtros, "all": "true"})
+    response.raise_for_status()
+    containers = response.json()
+    if not containers:
+        raise ValueError("container_nao_encontrado")
+    return containers[0]["Id"]
+
+
+def _docker_control(client, container_id, acao):
+    if acao == "stop":
+        response = client.post(f"/containers/{container_id}/stop", params={"t": str(STOP_GRACE_SECONDS)})
+    else:
+        response = client.post(f"/containers/{container_id}/start")
+    response.raise_for_status()
 
 
 def _traffic_attack(ctx, service, duracao, expected):
     ctx.set_expected_alerts(expected)
     duracao = int(duracao)
     with make_client() as client:
-        authenticate(client)
+        panel_session(client)
         response = client.post(PANEL_BASE + "/api/lab/traffic", headers={"X-Lab-Token": lab_token()},
                                json={"service": service, "duration": duracao})
         response.raise_for_status()
@@ -195,7 +223,7 @@ def _traffic_attack(ctx, service, duracao, expected):
                 ctx.progress(tentativas=counts.get("attempted", 0), sucesso=counts.get("successful", 0),
                              falhas=counts.get("failed", 0))
                 if expected[0] in _firing(client):
-                    ctx.log(f"Alerta {expected[0]} em firing; encerrando execuÃ§Ã£o para verificaÃ§Ã£o")
+                    ctx.log(f"Alerta {expected[0]} em firing; encerrando execução para verificação")
                     break
                 time.sleep(1)
         finally:
@@ -220,18 +248,21 @@ def flood_smtp(ctx, params):
 
 
 def adulteracao_config(ctx, params):
-    relativo = str(params["arquivo"])
+    relativo = str(params["arquivo"]).replace("\\", "/").strip("/")
     duracao = int(params["duracao"])
     ctx.set_expected_alerts(["ConfiguracaoAlterada"])
-    raiz = ROOT.resolve()
-    caminho = (raiz / relativo).resolve()
-    if not str(caminho).startswith(str(raiz / "infra") + os.sep):
+    if not relativo.startswith("infra/"):
+        raise ValueError("arquivo_fora_do_escopo")
+    dentro = relativo[len("infra/"):]
+    raiz = INFRA_ROOT.resolve()
+    caminho = (raiz / dentro).resolve()
+    if caminho == raiz or not str(caminho).startswith(str(raiz) + os.sep):
         raise ValueError("arquivo_fora_do_escopo")
     if not caminho.is_file():
         raise FileNotFoundError(relativo)
     original = caminho.read_bytes()
     caminho.write_bytes(original + b"\n# linha adulterada pelo painel de ataques\n")
-    ctx.log(f"Arquivo {relativo} adulterado; coletor de integridade deve detectar a mudanÃ§a")
+    ctx.log(f"Arquivo {relativo} adulterado; coletor de integridade deve detectar a mudança")
     try:
         _hold(ctx, duracao)
     finally:
@@ -245,21 +276,24 @@ def interrupcao_servico(ctx, params):
     if alvo not in STOP_ALERTS:
         raise ValueError("alvo_invalido")
     ctx.set_expected_alerts([STOP_ALERTS[alvo]])
-    _docker_compose("stop", alvo)
-    ctx.log(f"ServiÃ§o {alvo} parado; sondas correspondentes devem falhar")
+    with docker_client() as docker:
+        container_id = _container_id(docker, alvo)
+        _docker_control(docker, container_id, "stop")
+    ctx.log(f"Serviço {alvo} parado; sondas correspondentes devem falhar")
     try:
         deadline = time.monotonic() + max(duracao, 90)
         with make_client() as client:
             while time.monotonic() < deadline:
                 ctx.check_cancelled()
                 if STOP_ALERTS[alvo] in _firing(client):
-                    ctx.log(f"Alerta {STOP_ALERTS[alvo]} em firing; restaurando serviÃ§o")
+                    ctx.log(f"Alerta {STOP_ALERTS[alvo]} em firing; restaurando serviço")
                     break
                 ctx.progress(segundos_restantes=max(0, int(deadline - time.monotonic())))
                 time.sleep(1)
     finally:
-        _docker_compose("start", alvo)
-        ctx.log(f"ServiÃ§o {alvo} reiniciado")
+        with docker_client() as docker:
+            _docker_control(docker, _container_id(docker, alvo), "start")
+        ctx.log(f"Serviço {alvo} reiniciado")
 
 
 RUNNERS = {

@@ -1,6 +1,8 @@
-﻿import threading
+﻿import os
+import threading
 
 import httpx
+import pytest
 
 from demo.attacks import catalog, runners
 from demo.attacks.engine import Cancelled
@@ -38,7 +40,7 @@ def test_forca_bruta_no_servico_faz_tentativas_401_e_define_alerta(monkeypatch):
 
     def handler(request):
         chamadas.append(request.url.path)
-        return httpx.Response(401, json={"detail": "Token invÃ¡lido"})
+        return httpx.Response(401, json={"detail": "Token inválido"})
 
     monkeypatch.setattr(runners, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(handler), trust_env=False))
     monkeypatch.setattr(runners, "BRUTEFORCE_HOLD", 0)
@@ -54,7 +56,7 @@ def test_forca_bruta_no_painel_ataca_login_e_define_alerta(monkeypatch):
 
     def handler(request):
         corpos.append(request.read())
-        return httpx.Response(401, json={"detail": "Credenciais invÃ¡lidas"})
+        return httpx.Response(401, json={"detail": "Credenciais inválidas"})
 
     monkeypatch.setattr(runners, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(handler), trust_env=False))
     monkeypatch.setattr(runners, "BRUTEFORCE_HOLD", 0)
@@ -122,6 +124,34 @@ def test_indisponibilidade_restaura_modo_normal_mesmo_interrompido(monkeypatch):
     assert ctx.expected == ["HTTPIndisponivel"]
 
 
+def test_lab_token_vem_do_ambiente(monkeypatch):
+    monkeypatch.setenv("LAB_TOKEN", "token-do-container")
+    assert runners.lab_token() == "token-do-container"
+    monkeypatch.delenv("LAB_TOKEN", raising=False)
+    with pytest.raises(RuntimeError):
+        runners.lab_token()
+
+
+def test_sessao_do_painel_usa_credenciais_do_ambiente_e_define_csrf(monkeypatch):
+    chamadas = []
+
+    def handler(request):
+        chamadas.append(request)
+        if request.url.path == "/api/auth/login":
+            return httpx.Response(200, json={"csrf_token": "token-csrf"})
+        return httpx.Response(404)
+
+    monkeypatch.setenv("ADMIN_USERNAME", "admin")
+    monkeypatch.setenv("ADMIN_PASSWORD", "senha-do-container")
+    monkeypatch.setattr(runners, "PANEL_BASE", "http://painel-teste")
+    with httpx.Client(transport=httpx.MockTransport(handler), trust_env=False, base_url="http://painel-teste") as client:
+        runners.panel_session(client)
+    login = chamadas[0]
+    assert login.url.path == "/api/auth/login"
+    assert b'"password":"senha-do-container"' in login.read()
+    assert client.headers["X-CSRF-Token"] == "token-csrf"
+
+
 def test_flood_via_job_de_carga_termina_quando_alerta_fica_firing(monkeypatch):
     consultas = []
     job_state = {"status": "running", "services": {"dns": {"attempted": 10, "successful": 9, "failed": 1}}}
@@ -145,7 +175,7 @@ def test_flood_via_job_de_carga_termina_quando_alerta_fica_firing(monkeypatch):
 
     monkeypatch.setattr(runners, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(handler), trust_env=False))
     monkeypatch.setattr(runners, "lab_token", lambda: "token-de-teste")
-    monkeypatch.setattr(runners, "authenticate", lambda client: None)
+    monkeypatch.setattr(runners, "panel_session", lambda client: None)
     ctx = FakeCtx()
     runners.flood_dns(ctx, {"duracao": 60})
     assert ctx.expected == ["TrafegoAnormal"]
@@ -153,12 +183,12 @@ def test_flood_via_job_de_carga_termina_quando_alerta_fica_firing(monkeypatch):
     assert any("firing" in mensagem for mensagem in ctx.logs)
 
 
-def test_adulteracao_modifica_e_restaura_bytes_originais(monkeypatch, tmp_path):
-    alvo = tmp_path / "infra" / "dns" / "Corefile"
+def test_adulteracao_mapeia_para_a_raiz_do_container_e_restaura(monkeypatch, tmp_path):
+    alvo = tmp_path / "dns" / "Corefile"
     alvo.parent.mkdir(parents=True)
     original = b"aularedes.local {\n  errors\n}\n"
     alvo.write_bytes(original)
-    monkeypatch.setattr(runners, "ROOT", tmp_path)
+    monkeypatch.setattr(runners, "INFRA_ROOT", tmp_path)
     ctx = FakeCtx()
     runners.adulteracao_config(ctx, {"arquivo": "infra/dns/Corefile", "duracao": 1})
     assert alvo.read_bytes() == original
@@ -166,30 +196,52 @@ def test_adulteracao_modifica_e_restaura_bytes_originais(monkeypatch, tmp_path):
     assert any("restaurado" in mensagem for mensagem in ctx.logs)
 
 
-def test_adulteracao_recusa_arquivo_fora_de_infra(monkeypatch, tmp_path):
-    monkeypatch.setattr(runners, "ROOT", tmp_path)
+def test_adulteracao_recusa_arquivo_fora_da_raiz(monkeypatch, tmp_path):
+    monkeypatch.setattr(runners, "INFRA_ROOT", tmp_path)
     ctx = FakeCtx()
-    try:
-        runners.adulteracao_config(ctx, {"arquivo": "../secrets/x", "duracao": 1})
-        raise AssertionError("deveria recusar")
-    except ValueError as error:
-        assert "arquivo_fora_do_escopo" in str(error)
+    for relativo in ("../secrets/x", "backend/app/config.py", "infra/../../compose.yaml"):
+        try:
+            runners.adulteracao_config(ctx, {"arquivo": relativo, "duracao": 1})
+            raise AssertionError("deveria recusar " + relativo)
+        except ValueError as error:
+            assert "arquivo_fora_do_escopo" in str(error)
 
 
-def test_interrupcao_para_e_reinicia_servico_com_alerta_do_alvo(monkeypatch):
-    comandos = []
-
-    def docker_falso(*argumentos):
-        comandos.append(list(argumentos))
-
+def _docker_falso(registro):
     def handler(request):
+        if request.url.path == "/containers/json":
+            registro.append(("list", request.url.params.get("filters", "")))
+            if registro and registro[0][0] == "parado":
+                return httpx.Response(200, json=[])
+            registro.append(("listado", None))
+            return httpx.Response(200, json=[{"Id": "abc123", "Names": ["/aularedes-dns-1"]}])
+        if request.url.path == "/containers/abc123/stop":
+            registro.append(("stop", None))
+            return httpx.Response(204)
+        if request.url.path == "/containers/abc123/start":
+            registro.append(("start", None))
+            return httpx.Response(204)
+        if request.url.path == "/api/v1/query":
+            return httpx.Response(200, json={"status": "success", "data": {"result": [{"metric": {"alertname": "DNSIndisponivel", "alertstate": "firing"}}]}})
+        return httpx.Response(404)
+
+    return httpx.Client(transport=httpx.MockTransport(handler), trust_env=False, base_url="http://docker")
+
+
+def test_interrupcao_para_e_reinicia_via_api_do_docker(monkeypatch):
+    registro = []
+
+    def disparo_firing(request):
         return httpx.Response(200, json={"status": "success", "data": {"result": [{"metric": {"alertname": "DNSIndisponivel", "alertstate": "firing"}}]}})
 
-    monkeypatch.setattr(runners, "_docker_compose", docker_falso)
-    monkeypatch.setattr(runners, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(handler), trust_env=False))
+    monkeypatch.setattr(runners, "docker_client", lambda: _docker_falso(registro))
+    monkeypatch.setattr(runners, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(disparo_firing), trust_env=False))
     ctx = FakeCtx()
-    runners.interrupcao_servico(ctx, {"alvo": "dns", "duracao": 60})
-    assert comandos == [["stop", "dns"], ["start", "dns"]]
+    runners.interrupcao_servico(ctx, {"alvo": "dns", "duracao": 1})
+    acoes = [item[0] for item in registro if item[0] in ("stop", "start")]
+    assert acoes == ["stop", "start"]
+    filtros = registro[0][1]
+    assert "com.docker.compose.service" in filtros and "dns" in filtros
     assert ctx.expected == ["DNSIndisponivel"]
     assert any("reiniciado" in mensagem for mensagem in ctx.logs)
 
@@ -202,6 +254,19 @@ def test_interrupcao_recusa_alvos_proibidos():
             raise AssertionError("deveria recusar " + alvo)
         except ValueError as error:
             assert "alvo_invalido" in str(error)
+
+
+def test_interrupcao_falha_se_container_nao_for_localizado(monkeypatch):
+    def handler(request):
+        if request.url.path == "/containers/json":
+            return httpx.Response(200, json=[])
+        return httpx.Response(404)
+
+    monkeypatch.setattr(runners, "docker_client", lambda: httpx.Client(transport=httpx.MockTransport(handler), trust_env=False, base_url="http://docker"))
+    ctx = FakeCtx()
+    with pytest.raises(ValueError) as excinfo:
+        runners.interrupcao_servico(ctx, {"alvo": "dns", "duracao": 30})
+    assert "container_nao_encontrado" in str(excinfo.value)
 
 
 def test_registro_runners_cobre_o_catalogo():
