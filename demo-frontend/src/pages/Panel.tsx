@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type Mode } from "../api";
+import { api, type Attack, type AttackEvent, type Mode, type QueueSnapshot } from "../api";
 import { parseDemoCounters, type RequestCounters } from "../metrics";
+import AttacksSection from "./AttacksSection";
 
 interface WorkLogEntry {
   at: string;
@@ -9,8 +10,11 @@ interface WorkLogEntry {
   failure?: string;
 }
 
+const MAX_EVENTS = 60;
+
 export default function Panel() {
   const [ready, setReady] = useState(false);
+  const [tab, setTab] = useState<"servico" | "ataques">("servico");
   const [online, setOnline] = useState<boolean | null>(null);
   const [mode, setMode] = useState<string | null>(null);
   const [counters, setCounters] = useState<RequestCounters | null>(null);
@@ -21,6 +25,11 @@ export default function Panel() {
   const [labToken, setLabToken] = useState("");
   const [modeBusy, setModeBusy] = useState(false);
   const [modeMessage, setModeMessage] = useState<string | null>(null);
+  const [attacks, setAttacks] = useState<Attack[]>([]);
+  const [queue, setQueue] = useState<QueueSnapshot | null>(null);
+  const [events, setEvents] = useState<AttackEvent[]>([]);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [attackMessage, setAttackMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -52,24 +61,38 @@ export default function Panel() {
       setCounters(null);
     }
   }, []);
+  const refreshQueue = useCallback(async () => {
+    try {
+      setQueue(await api.queue());
+    } catch {
+      setQueue(null);
+    }
+  }, []);
 
   useEffect(() => {
     if (!ready) return;
     void refreshHealth();
     void refreshMode();
     void refreshMetrics();
+    void refreshQueue();
+    api.attacks().then((catalog) => setAttacks(catalog)).catch(() => setAttacks([]));
+    const unsubscribe = api.subscribeEvents((event) => {
+      setEvents((previous) => [...previous.slice(-(MAX_EVENTS - 1)), event]);
+    });
     const fast = window.setInterval(() => {
       void refreshHealth();
       void refreshMode();
+      void refreshQueue();
     }, 3000);
     const slow = window.setInterval(() => {
       void refreshMetrics();
     }, 8000);
     return () => {
+      unsubscribe();
       window.clearInterval(fast);
       window.clearInterval(slow);
     };
-  }, [ready, refreshHealth, refreshMode, refreshMetrics]);
+  }, [ready, refreshHealth, refreshMode, refreshMetrics, refreshQueue]);
 
   async function runWork() {
     setBusy(true);
@@ -127,6 +150,39 @@ export default function Panel() {
     }
   }
 
+  function handleStart(attack: Attack, params: Record<string, string>) {
+    setBusyId(attack.id);
+    setAttackMessage(null);
+    api
+      .startAttack(attack.id, params)
+      .then(() => {
+        void refreshQueue();
+      })
+      .catch((error: Error) => {
+        if (error.message === "HTTP 401") {
+          window.location.assign("/login");
+          return;
+        }
+        setAttackMessage(
+          error.message === "parametro_fora_da_faixa"
+            ? "Parâmetro fora da faixa permitida."
+            : `Não foi possível agendar: ${error.message}`,
+        );
+      })
+      .finally(() => setBusyId(null));
+  }
+
+  function handleCancel(entryId: string) {
+    api
+      .cancelAttack(entryId)
+      .then(() => {
+        void refreshQueue();
+      })
+      .catch((error: Error) => {
+        if (error.message === "HTTP 401") window.location.assign("/login");
+      });
+  }
+
   const statusLines = counters
     ? Object.entries(counters.byStatus).sort(([left], [right]) => left.localeCompare(right))
     : [];
@@ -156,6 +212,35 @@ export default function Panel() {
       </header>
 
       <div className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6 sm:py-10">
+        <nav aria-label="Áreas do painel" className="flex flex-wrap gap-2">
+          {(
+            [
+              ["servico", "Serviço"],
+              ["ataques", "Simulação de ataques"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTab(id)}
+              aria-pressed={tab === id}
+              className={`border px-3 py-2 text-xs font-semibold transition-colors ${
+                tab === id
+                  ? "border-cyan bg-cyan/10 text-cyan"
+                  : "border-panel-edge text-parchment/65 hover:border-cyan/60 hover:text-cyan"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+          {attackMessage && (
+            <p role="status" className="w-full text-xs text-amber-300">
+              {attackMessage}
+            </p>
+          )}
+        </nav>
+
+        <div className={tab === "servico" ? "space-y-8" : "hidden space-y-8"}>
         <section aria-labelledby="overview-title">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div>
@@ -342,6 +427,18 @@ export default function Panel() {
             )}
           </div>
         </details>
+        </div>
+
+        <div className={tab === "ataques" ? "space-y-8" : "hidden space-y-8"}>
+          <AttacksSection
+            attacks={attacks}
+            queue={queue}
+            busyId={busyId}
+            events={events}
+            onStart={handleStart}
+            onCancel={handleCancel}
+          />
+        </div>
       </div>
     </main>
   );

@@ -1,5 +1,54 @@
 export type Mode = "normal" | "slow" | "offline";
 
+export interface AttackParam {
+  name: string;
+  type: string;
+  default: number | string;
+  min?: number;
+  max?: number;
+  options?: string[];
+}
+
+export interface Attack {
+  id: string;
+  name: string;
+  target: string;
+  description: string;
+  params: AttackParam[];
+  expected_alerts: string[];
+}
+
+export interface QueueEntry {
+  entry_id: string;
+  attack: string;
+  status: string;
+  params: Record<string, number | string>;
+  expected_alerts: string[];
+  counters: Record<string, number>;
+  verification: { available: boolean; fired: string[]; missing: string[] } | null;
+  error: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+}
+
+export interface QueueSnapshot {
+  current: QueueEntry | null;
+  queue: QueueEntry[];
+  history: QueueEntry[];
+}
+
+export interface AttackEvent {
+  seq: number;
+  type: string;
+  entry_id?: string;
+  attack?: string;
+  status?: string;
+  message?: string;
+  counters?: Record<string, number>;
+  data?: { available: boolean; fired: string[]; missing: string[] };
+  [key: string]: unknown;
+}
+
 export interface WorkResult {
   message: string;
   timestamp: number;
@@ -67,6 +116,47 @@ export const api = {
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
+  },
+  attacks(): Promise<Attack[]> {
+    return requestJson<{ attacks: Attack[] }>("/api/attacks").then((data) => data.attacks);
+  },
+  queue(): Promise<QueueSnapshot> {
+    return requestJson<QueueSnapshot>("/api/queue");
+  },
+  async startAttack(attackId: string, params: Record<string, string>): Promise<QueueEntry> {
+    const response = await fetch(`/api/attacks/${encodeURIComponent(attackId)}/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ params }),
+    });
+    if (!response.ok) {
+      let detail = `HTTP ${response.status}`;
+      try {
+        detail = (await response.json()).detail ?? detail;
+      } catch {
+        // corpo sem JSON: mantém o código HTTP
+      }
+      throw new Error(detail);
+    }
+    return (await response.json()) as QueueEntry;
+  },
+  async cancelAttack(entryId: string): Promise<QueueEntry> {
+    const response = await fetch(`/api/queue/${encodeURIComponent(entryId)}/cancel`, { method: "POST" });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    return (await response.json()) as QueueEntry;
+  },
+  subscribeEvents(onEvent: (event: AttackEvent) => void): () => void {
+    const source = new EventSource("/api/events");
+    source.onmessage = (message) => {
+      try {
+        onEvent(JSON.parse(message.data) as AttackEvent);
+      } catch {
+        // evento malformado é ignorado
+      }
+    };
+    return () => source.close();
   },
 };
 
