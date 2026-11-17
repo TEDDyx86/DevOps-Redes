@@ -3,7 +3,8 @@
 Ferramenta local para demonstrar ataques controlados contra o laboratório e
 observar os alertas correspondentes no painel de monitoramento. Acesso
 exclusivamente em `127.0.0.1:8002`; nunca exposta na rede. Totalmente
-separada do dashboard React (porta 8000) e do web-demo (porta 8001).
+separada do dashboard React (porta 8000) e do web-demo (porta 8011 no host;
+porta 8001 dentro da rede Docker).
 
 ## Iniciar
 

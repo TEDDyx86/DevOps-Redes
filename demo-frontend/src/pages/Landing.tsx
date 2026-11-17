@@ -1,81 +1,69 @@
-import { PixelHero } from "../components/PixelHero";
-import { FeatureGrid } from "../components/FeatureGrid";
+import { PixelNavHeader } from "../components/PixelNavHeader";
+import { PixelHeroScene } from "../components/PixelHeroScene";
 import { navigate } from "../api";
 
-const marqueeItems = [
-  "WORKBYTE",
-  "SINAL DE VERDADE",
-  "PROCESSAMENTO EM TEMPO REAL",
-  "8-BIT // FUTURISTA",
-  "PROMETHEUS INSIDE",
-  "WORKBYTE",
-  "SINAL DE VERDADE",
-  "PROCESSAMENTO EM TEMPO REAL",
-  "8-BIT // FUTURISTA",
-  "PROMETHEUS INSIDE",
+const capabilities = [
+  {
+    label: "Sinal do serviço",
+    detail: "Verificação real de disponibilidade do web-demo.",
+  },
+  {
+    label: "Requisições medidas",
+    detail: "O endpoint /work responde com duração observável.",
+  },
+  {
+    label: "Métricas HTTP",
+    detail: "Contadores de requisições e códigos coletados pelo Prometheus.",
+  },
 ];
 
 export default function Landing() {
   return (
-    <main className="font-mono text-parchment">
-      <section className="crt-scanlines synth-grid relative min-h-screen overflow-hidden">
-        <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-          <span className="font-pixel text-xs text-magenta glow-magenta">WORKBYTE</span>
-          <button
-            onClick={() => navigate("/login")}
-            className="font-pixel border-2 border-cyan px-4 py-2 text-[10px] text-cyan transition-colors hover:bg-cyan/10"
-          >
-            ENTRAR
-          </button>
-        </header>
-        <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-10 px-6 pt-10 pb-24 md:grid-cols-2">
-          <div className="crt-flicker">
-            <h1 className="font-pixel text-3xl leading-relaxed md:text-4xl">
-              <span className="text-parchment">TRABALHO</span>{" "}
-              <span className="text-cyan glow-cyan">REAL</span>
-              <br />
-              <span className="text-magenta glow-magenta">EM PIXELS</span>
-            </h1>
-            <p className="mt-6 max-w-md text-sm leading-relaxed opacity-75">
-              * O processador de tarefas do laboratório: cada requisição medida,
-              cada falha observada, cada alerta entregue. Sem rotas falsas.
-            </p>
-            <button
-              onClick={() => navigate("/login")}
-              className="font-pixel mt-8 border-4 border-magenta bg-magenta/10 px-8 py-4 text-xs text-magenta glow-magenta transition-transform hover:translate-y-[-2px]"
-            >
-              ▶ ABRIR PAINEL
-            </button>
-          </div>
-          <div className="border-2 border-panel-edge shadow-[0_0_40px_rgba(139,92,246,0.25)]">
-            <PixelHero />
-          </div>
-        </div>
+    <main className="min-h-screen bg-[#05060f] font-mono text-parchment">
+      <PixelNavHeader />
+
+      <section id="hero" className="mx-auto max-w-6xl px-4 pt-6 pb-10 sm:px-6 sm:pt-10">
+        <PixelHeroScene onStartClick={() => navigate("/login")} />
       </section>
 
-      <section className="overflow-hidden border-y-2 border-panel-edge bg-panel py-3">
-        <div className="marquee-track flex w-max gap-12 font-pixel text-[10px] text-violet">
-          {marqueeItems.map((item, index) => (
-            <span key={`${item}-${index}`}>{item} ✦</span>
+      <section
+        id="recursos"
+        aria-labelledby="capabilities-title"
+        className="mx-auto max-w-6xl px-4 pb-16 sm:px-6 sm:pb-20"
+      >
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-panel-edge pb-4">
+          <div>
+            <p className="font-pixel text-[9px] tracking-[0.18em] text-cyan">
+              OBSERVABILIDADE DO SERVIÇO
+            </p>
+            <h2 id="capabilities-title" className="mt-3 text-lg font-semibold text-parchment sm:text-xl">
+              Uma visão direta do que está acontecendo.
+            </h2>
+          </div>
+          <span className="text-xs text-parchment/50">Ambiente local de demonstração</span>
+        </div>
+
+        <div className="grid gap-px overflow-hidden border border-panel-edge bg-panel-edge md:grid-cols-3">
+          {capabilities.map((capability) => (
+            <article key={capability.label} className="min-h-32 bg-[#090b16] p-5 sm:p-6">
+              <h3 className="mt-4 text-sm font-semibold text-parchment">{capability.label}</h3>
+              <p className="mt-2 text-xs leading-relaxed text-parchment/60">
+                {capability.detail}
+              </p>
+            </article>
           ))}
         </div>
+
+        <p className="mt-5 max-w-3xl text-xs leading-relaxed text-parchment/45">
+          Acesse o painel para acompanhar o sinal, executar uma requisição de trabalho e consultar
+          os contadores HTTP observados. Os controles de falha são restritos ao laboratório.
+        </p>
       </section>
 
-      <section className="mx-auto max-w-6xl px-6 py-20">
-        <h2 className="font-pixel text-sm text-cyan glow-cyan">SISTEMA EM CAMADAS</h2>
-        <p className="mt-3 text-sm opacity-70">* Tudo que o WORKBYTE expõe, o Prometheus coleta.</p>
-        <div className="mt-10">
-          <FeatureGrid />
-        </div>
-      </section>
-
-      <footer className="border-t-2 border-panel-edge bg-panel px-6 py-10">
-        <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 text-center">
-          <div className="flex gap-8 font-pixel text-[10px] text-parchment opacity-70">
-            <span>♥</span><span>▶</span><span>◆</span><span>✉</span>
-          </div>
-          <p className="text-xs opacity-60">WORKBYTE — laboratório de redes · serviços medidos de verdade</p>
-          <p className="text-[10px] opacity-40">/health · /work · /metrics · /mode</p>
+      <footer className="border-t border-panel-edge bg-[#080912] px-4 py-6 sm:px-6">
+        <div className="mx-auto flex max-w-6xl flex-col gap-2 text-xs text-parchment/50 sm:flex-row sm:items-center sm:justify-between">
+          <span className="font-pixel text-[9px] text-parchment/70">WORKBYTE // LABORATÓRIO DE REDES</span>
+          <span>Docker Compose · Prometheus · CoreDNS · PostgreSQL · SMTP</span>
         </div>
       </footer>
     </main>

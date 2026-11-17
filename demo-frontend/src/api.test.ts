@@ -40,4 +40,18 @@ describe("api", () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ mode: "slow" }), { status: 200 })));
     expect(await api.mode()).toEqual({ mode: "slow" });
   });
+
+  it("setMode posts new mode with lab token", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ mode: "slow" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await api.setMode("slow", "test-token")).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith("/mode", expect.objectContaining({
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Lab-Token": "test-token",
+      },
+      body: JSON.stringify({ mode: "slow" }),
+    }));
+  });
 });

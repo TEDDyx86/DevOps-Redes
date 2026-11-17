@@ -14,7 +14,7 @@ from scripts.attack_panel import verification
 from scripts.lab_session import authenticate
 
 ROOT = Path(__file__).resolve().parents[2]
-DEMO_BASE = "http://localhost:8001"
+DEMO_BASE = "http://localhost:8011"
 PANEL_BASE = "http://localhost:8000"
 PROMETHEUS_BASE = "http://localhost:9090"
 

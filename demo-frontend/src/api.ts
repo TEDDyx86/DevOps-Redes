@@ -25,6 +25,17 @@ export const api = {
   mode(): Promise<{ mode: Mode }> {
     return requestJson<{ mode: Mode }>("/mode");
   },
+  async setMode(mode: Mode, labToken: string): Promise<boolean> {
+    const response = await fetch("/mode", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Lab-Token": labToken,
+      },
+      body: JSON.stringify({ mode }),
+    });
+    return response.ok;
+  },
   work(): Promise<WorkResult> {
     return requestJson<WorkResult>("/work");
   },

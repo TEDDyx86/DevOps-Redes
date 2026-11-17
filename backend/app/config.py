@@ -6,7 +6,7 @@ from pathlib import Path
 @dataclass(frozen=True)
 class Settings:
     prometheus_url: str = "http://127.0.0.1:9090"
-    demo_url: str = "http://127.0.0.1:8001"
+    demo_url: str = "http://127.0.0.1:8011"
     database_path: Path = Path("data/incidents.sqlite")
     webhook_token: str = ""
     lab_token: str = ""
@@ -34,7 +34,7 @@ class Settings:
         password_hash = Path(hash_path).read_text(encoding="utf-8").strip() if hash_path and Path(hash_path).is_file() else ""
         return cls(
             prometheus_url=os.getenv("PROMETHEUS_URL", "http://127.0.0.1:9090"),
-            demo_url=os.getenv("DEMO_URL", "http://127.0.0.1:8001"),
+            demo_url=os.getenv("DEMO_URL", "http://127.0.0.1:8011"),
             database_path=Path(os.getenv("DATABASE_PATH", "data/incidents.sqlite")),
             webhook_token=os.getenv("WEBHOOK_TOKEN", ""),
             lab_token=os.getenv("LAB_TOKEN", ""),

@@ -2,7 +2,7 @@
 import copy
 
 CATALOG = [
-    {"id": "bruteforce-servico", "name": "Força bruta no serviço", "target": "web-demo (:8001)",
+    {"id": "bruteforce-servico", "name": "Força bruta no serviço", "target": "web-demo (:8011)",
      "description": "Tentativas de POST /mode com token inválido; desperta AutenticacaoServicoSuspeita.",
      "params": [{"name": "tentativas", "type": "int", "default": 12, "min": 6, "max": 60}],
      "expected_alerts": ["AutenticacaoServicoSuspeita"]},
@@ -10,12 +10,12 @@ CATALOG = [
      "description": "Logins com senha errada em /api/auth/login; desperta AutenticacaoSuspeita.",
      "params": [{"name": "tentativas", "type": "int", "default": 8, "min": 6, "max": 40}],
      "expected_alerts": ["AutenticacaoSuspeita"]},
-    {"id": "sobrecarga-http", "name": "Sobrecarga HTTP em /work", "target": "web-demo (:8001)",
+    {"id": "sobrecarga-http", "name": "Sobrecarga HTTP em /work", "target": "web-demo (:8011)",
      "description": "Maré de requisições GET /work a partir do host; CPU e tráfego acima do normal.",
      "params": [{"name": "taxa", "type": "int", "default": 50, "min": 10, "max": 200},
                 {"name": "duracao", "type": "int", "default": 20, "min": 10, "max": 60}],
      "expected_alerts": ["RecursoCPUElevada", "TrafegoAnormal"]},
-    {"id": "indisponibilidade-http", "name": "Indisponibilidade do web-demo", "target": "web-demo (:8001)",
+    {"id": "indisponibilidade-http", "name": "Indisponibilidade do web-demo", "target": "web-demo (:8011)",
      "description": "Modo offline via POST /mode (token do operador do .env); sondas HTTP falham.",
      "params": [{"name": "duracao", "type": "int", "default": 45, "min": 20, "max": 120}],
      "expected_alerts": ["HTTPIndisponivel"]},

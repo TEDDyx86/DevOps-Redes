@@ -1,7 +1,8 @@
 # Especificação — Refinamento visual do web-demo
 
 Data: 2026-11-13 · Status: aguardando revisão do usuário
-Escopo: `demo-frontend` — landing pública e painel do serviço de demonstração (`:8001`).
+Escopo: `demo-frontend` — landing pública e painel do serviço de demonstração
+(host `:8011`, container `:8001`).
 
 ## Objetivo
 

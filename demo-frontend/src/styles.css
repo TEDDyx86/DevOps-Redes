@@ -12,6 +12,10 @@
   --color-violet: #8b5cf6;
   --color-amber: #ffb400;
   --color-parchment: #e8e6f0;
+  --color-retro-cream: #e8e8c6;
+  --color-retro-dark: #252525;
+  --color-retro-slate: #474744;
+  --color-retro-sky: #00aeef;
   --font-pixel: "Press Start 2P", "IBM Plex Mono", monospace;
   --font-mono: "IBM Plex Mono", monospace;
 }
@@ -24,33 +28,7 @@ body {
 body {
   color: var(--color-parchment);
   font-family: var(--font-mono);
-}
-
-.crt-scanlines {
-  position: relative;
-}
-
-.crt-scanlines::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 50;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    to bottom,
-    transparent 0 2px,
-    rgba(2, 3, 10, 0.35) 2px 4px
-  );
-}
-
-.crt-flicker {
-  animation: crt-flicker 6s infinite steps(1);
-}
-
-@keyframes crt-flicker {
-  0%, 91%, 94%, 96%, 100% { opacity: 1; }
-  93% { opacity: 0.86; }
-  97% { opacity: 0.92; }
+  overflow-x: hidden;
 }
 
 .glow-magenta {
@@ -61,24 +39,51 @@ body {
   text-shadow: 0 0 6px rgba(0, 229, 255, 0.8), 0 0 24px rgba(0, 229, 255, 0.35);
 }
 
-.dialog-rpg {
-  border: 4px double #ffffff;
-  background: rgba(5, 6, 15, 0.94);
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.8), 0 0 18px rgba(139, 92, 246, 0.35);
+.glow-amber {
+  text-shadow: 0 0 6px rgba(255, 180, 0, 0.8), 0 0 20px rgba(255, 180, 0, 0.35);
 }
 
-.synth-grid {
-  background-image:
-    linear-gradient(rgba(139, 92, 246, 0.22) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(139, 92, 246, 0.22) 1px, transparent 1px);
-  background-size: 40px 40px;
+/* Título 3D com relevo pixel art (estilo Imagem 1 e 4) */
+.pixel-text-3d {
+  text-shadow:
+    2px 2px 0px #b45309,
+    4px 4px 0px #78350f,
+    6px 6px 0px #000000;
 }
 
-.marquee-track {
-  animation: marquee 18s linear infinite;
+.pixel-text-cyan-3d {
+  text-shadow:
+    2px 2px 0px #0284c7,
+    4px 4px 0px #0369a1,
+    6px 6px 0px #000000;
 }
 
-@keyframes marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0b14;
+  border-left: 1px solid #1b1f3a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #8b5cf6;
+  border: 2px solid #0a0b14;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #00e5ff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

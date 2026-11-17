@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api } from "../api";
+import { api, type Mode } from "../api";
 import { parseDemoCounters, type RequestCounters } from "../metrics";
 
 interface WorkLogEntry {
@@ -9,16 +9,6 @@ interface WorkLogEntry {
   failure?: string;
 }
 
-function StatCard({ label, value, tone, glitch }: { label: string; value: string; tone: "cyan" | "violet" | "amber" | "magenta"; glitch?: boolean }) {
-  const toneClass = { cyan: "text-cyan glow-cyan", violet: "text-violet", amber: "text-amber", magenta: "text-magenta glow-magenta" }[tone];
-  return (
-    <div className="dialog-rpg p-6">
-      <p className="font-pixel text-[10px] opacity-60">{label}</p>
-      <p className={`font-pixel mt-4 text-sm ${toneClass} ${glitch ? "crt-flicker" : ""}`}>{value}</p>
-    </div>
-  );
-}
-
 export default function Panel() {
   const [ready, setReady] = useState(false);
   const [online, setOnline] = useState<boolean | null>(null);
@@ -26,6 +16,11 @@ export default function Panel() {
   const [counters, setCounters] = useState<RequestCounters | null>(null);
   const [log, setLog] = useState<WorkLogEntry[]>([]);
   const [busy, setBusy] = useState(false);
+  const [lastLatency, setLastLatency] = useState<number | undefined>(undefined);
+  const [workCount, setWorkCount] = useState(0);
+  const [labToken, setLabToken] = useState("");
+  const [modeBusy, setModeBusy] = useState(false);
+  const [modeMessage, setModeMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -37,7 +32,9 @@ export default function Panel() {
       }
       setReady(true);
     });
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const refreshHealth = useCallback(async () => setOnline(await api.health()), []);
@@ -61,9 +58,17 @@ export default function Panel() {
     void refreshHealth();
     void refreshMode();
     void refreshMetrics();
-    const fast = window.setInterval(() => { void refreshHealth(); void refreshMode(); }, 3000);
-    const slow = window.setInterval(() => { void refreshMetrics(); }, 10000);
-    return () => { window.clearInterval(fast); window.clearInterval(slow); };
+    const fast = window.setInterval(() => {
+      void refreshHealth();
+      void refreshMode();
+    }, 3000);
+    const slow = window.setInterval(() => {
+      void refreshMetrics();
+    }, 8000);
+    return () => {
+      window.clearInterval(fast);
+      window.clearInterval(slow);
+    };
   }, [ready, refreshHealth, refreshMode, refreshMetrics]);
 
   async function runWork() {
@@ -72,75 +77,272 @@ export default function Panel() {
     try {
       const data = await api.work();
       const latencyMs = Math.round(performance.now() - started);
-      setLog((entries) => [{ at: new Date().toLocaleTimeString(), latencyMs, message: data.message }, ...entries].slice(0, 8));
+      setLastLatency(latencyMs);
+      setWorkCount((count) => count + 1);
+      setOnline(true);
+      setLog((entries) => [
+        { at: new Date().toLocaleTimeString(), latencyMs, message: data.message },
+        ...entries.slice(0, 11),
+      ]);
+      void refreshMetrics();
     } catch {
       const latencyMs = Math.round(performance.now() - started);
-      setLog((entries) => [{ at: new Date().toLocaleTimeString(), latencyMs, message: "", failure: "FALHA — serviço não respondeu" }, ...entries].slice(0, 8));
+      setLastLatency(latencyMs);
+      setOnline(false);
+      setLog((entries) => [
+        {
+          at: new Date().toLocaleTimeString(),
+          latencyMs,
+          message: "",
+          failure: "Falha 503 ou timeout — serviço indisponível ou lento.",
+        },
+        ...entries.slice(0, 11),
+      ]);
+      void refreshMetrics();
     } finally {
       setBusy(false);
     }
   }
 
+  async function applyMode(newMode: Mode) {
+    if (!labToken.trim()) {
+      setModeMessage("Informe o LAB_TOKEN do .env para alterar o modo do serviço.");
+      return;
+    }
+    setModeBusy(true);
+    setModeMessage(null);
+    try {
+      const ok = await api.setMode(newMode, labToken.trim());
+      if (ok) {
+        setModeMessage(`Modo alterado para ${newMode.toUpperCase()}.`);
+        void refreshMode();
+        void refreshHealth();
+      } else {
+        setModeMessage("Token de laboratório inválido (401).");
+      }
+    } catch {
+      setModeMessage("Não foi possível comunicar com o endpoint /mode.");
+    } finally {
+      setModeBusy(false);
+    }
+  }
+
   const statusLines = counters
-    ? Object.entries(counters.byStatus).sort(([a], [b]) => a.localeCompare(b))
+    ? Object.entries(counters.byStatus).sort(([left], [right]) => left.localeCompare(right))
     : [];
+  const statusLabel = online === null ? "Aguardando verificação" : online ? "Operacional" : "Indisponível";
+  const statusTone =
+    online === null ? "text-parchment/60" : online ? "text-emerald-300" : "text-rose-300";
 
   return (
-    <main className="crt-scanlines min-h-screen bg-bg px-6 py-8 font-mono text-parchment">
-      <header className="mx-auto flex max-w-5xl items-center justify-between">
-        <h1 className="font-pixel text-xs text-cyan glow-cyan">WORKBYTE // PAINEL</h1>
-        <button
-          onClick={() => { void api.logout().then(() => window.location.assign("/")); }}
-          className="font-pixel border-2 border-magenta px-3 py-2 text-[10px] text-magenta transition-colors hover:bg-magenta/10"
-        >
-          SAIR
-        </button>
+    <main className="min-h-screen bg-[#05060f] font-mono text-parchment">
+      <header className="border-b border-panel-edge bg-[#080912]">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
+          <a href="/" className="font-pixel text-[10px] tracking-wider text-parchment">
+            WORKBYTE<span className="text-cyan">.EXE</span>
+            <span className="ml-3 hidden font-mono text-xs font-normal tracking-normal text-parchment/45 sm:inline">
+              / Painel do serviço
+            </span>
+          </a>
+          <button
+            onClick={() => {
+              void api.logout().then(() => window.location.assign("/"));
+            }}
+            className="border border-panel-edge px-3 py-2 text-xs text-parchment/70 transition-colors hover:border-cyan/60 hover:text-cyan focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan"
+          >
+            Sair
+          </button>
+        </div>
       </header>
 
-      <section className="mx-auto mt-8 grid max-w-5xl gap-6 md:grid-cols-3">
-        <StatCard label="SINAL" value={online === null ? "..." : online ? "● ONLINE" : "✖ SIGNAL LOST"} tone={online ? "cyan" : "magenta"} glitch={online === false} />
-        <StatCard label="MODO" value={mode === null ? "..." : mode.toUpperCase()} tone="violet" />
-        <StatCard label="REQUISIÇÕES" value={counters ? String(Math.round(counters.total)) : "AGUARDANDO DADOS"} tone="amber" />
-      </section>
-
-      <section className="mx-auto mt-6 grid max-w-5xl gap-6 md:grid-cols-2">
-        <div className="dialog-rpg p-6">
-          <p className="font-pixel text-[10px] opacity-60">CONSOLE DE TRABALHO</p>
-          <button
-            onClick={() => { void runWork(); }}
-            disabled={busy}
-            className="font-pixel mt-4 border-2 border-cyan px-4 py-3 text-[10px] text-cyan transition-colors hover:bg-cyan/10 disabled:opacity-50"
-          >
-            {busy ? "PROCESSANDO..." : "▶ EXECUTAR /WORK"}
-          </button>
-          <div className="mt-4 max-h-56 space-y-2 overflow-y-auto font-mono text-xs">
-            {log.length === 0 && <p className="opacity-50">* Sem execuções nesta sessão.</p>}
-            {log.map((entry, index) => (
-              <p key={`${entry.at}-${index}`} className={entry.failure ? "text-magenta" : "opacity-80"}>
-                [{entry.at}] {entry.failure ?? `${entry.message} — ${entry.latencyMs} ms`}
-              </p>
-            ))}
+      <div className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6 sm:py-10">
+        <section aria-labelledby="overview-title">
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="font-pixel text-[9px] tracking-[0.16em] text-cyan">VISÃO DO SERVIÇO</p>
+              <h1 id="overview-title" className="mt-3 text-xl font-semibold sm:text-2xl">
+                Estado atual
+              </h1>
+            </div>
+            <span className="text-xs text-parchment/45">Atualização automática</span>
           </div>
-        </div>
-        <div className="dialog-rpg p-6">
-          <p className="font-pixel text-[10px] opacity-60">CONTADORES POR STATUS</p>
-          <div className="mt-4 space-y-2 font-mono text-xs">
-            {statusLines.length === 0 && <p className="opacity-50">AGUARDANDO DADOS</p>}
-            {statusLines.map(([status, value]) => (
-              <p key={status} className="flex justify-between opacity-80">
-                <span>HTTP {status}</span>
-                <span className="text-cyan">{Math.round(value)}</span>
+
+          <div className="grid overflow-hidden border border-panel-edge bg-panel-edge sm:grid-cols-3">
+            <div className="bg-[#090b16] p-5 sm:p-6">
+              <p className="text-xs text-parchment/55">SINAL DO SERVIÇO</p>
+              <p className={`mt-3 text-lg font-semibold ${statusTone}`} aria-live="polite">
+                <span aria-hidden="true">{online === null ? "○" : online ? "●" : "●"}</span>{" "}
+                {statusLabel}
               </p>
-            ))}
-            {counters && counters.work > 0 && (
-              <p className="flex justify-between border-t border-panel-edge pt-2 opacity-80">
-                <span>/work</span>
-                <span className="text-violet">{Math.round(counters.work)}</span>
+              <p className="mt-2 text-xs text-parchment/40">Verificação HTTP do web-demo</p>
+            </div>
+            <div className="border-t border-panel-edge bg-[#090b16] p-5 sm:border-l sm:border-t-0 sm:p-6">
+              <p className="text-xs text-parchment/55">MODO DE OPERAÇÃO</p>
+              <p className="mt-3 text-lg font-semibold capitalize text-parchment">
+                {mode ?? "Sem dados"}
+              </p>
+              <p className="mt-2 text-xs text-parchment/40">Estado informado pelo serviço</p>
+            </div>
+            <div className="border-t border-panel-edge bg-[#090b16] p-5 sm:border-l sm:border-t-0 sm:p-6">
+              <p className="text-xs text-parchment/55">ÚLTIMA LATÊNCIA /WORK</p>
+              <p className="mt-3 text-lg font-semibold text-cyan">
+                {lastLatency === undefined ? "Sem medição" : `${lastLatency} ms`}
+              </p>
+              <p className="mt-2 text-xs text-parchment/40">
+                {workCount} {workCount === 1 ? "resposta bem-sucedida nesta sessão" : "respostas bem-sucedidas nesta sessão"}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="work-title" className="border border-panel-edge bg-[#090b16]">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-panel-edge px-5 py-4 sm:px-6">
+            <div>
+              <p className="font-pixel text-[9px] tracking-wide text-cyan">REQUISIÇÃO REAL</p>
+              <h2 id="work-title" className="mt-2 text-base font-semibold">Executar /work</h2>
+              <p className="mt-1 text-xs text-parchment/55">
+                Envia uma requisição ao serviço e mede o tempo de resposta neste navegador.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void runWork()}
+              disabled={busy}
+              className="border border-cyan bg-cyan/10 px-4 py-3 text-xs font-semibold text-cyan transition-colors hover:bg-cyan hover:text-[#05060f] disabled:cursor-wait disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan"
+            >
+              {busy ? "Executando…" : "▶ Executar /work"}
+            </button>
+          </div>
+
+          <div className="p-5 sm:px-6">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h3 className="text-xs font-semibold text-parchment/75">Atividade recente</h3>
+              <button
+                type="button"
+                onClick={() => setLog([])}
+                disabled={log.length === 0}
+                className="text-xs text-parchment/50 underline decoration-panel-edge underline-offset-4 hover:text-cyan disabled:no-underline disabled:opacity-40"
+              >
+                Limpar
+              </button>
+            </div>
+            <div className="max-h-56 space-y-2 overflow-y-auto">
+              {log.length === 0 ? (
+                <p className="border border-panel-edge px-3 py-4 text-xs text-parchment/45">
+                  Nenhuma requisição executada nesta sessão.
+                </p>
+              ) : (
+                log.map((entry, index) => (
+                  <div
+                    key={`${entry.at}-${index}`}
+                    className="flex flex-wrap items-start justify-between gap-2 border-l-2 border-cyan/50 bg-black/25 px-3 py-2 text-xs"
+                  >
+                    <p className={entry.failure ? "text-rose-300" : "text-parchment/75"}>
+                      <span className="mr-2 text-parchment/40">{entry.at}</span>
+                      {entry.failure ?? entry.message}
+                    </p>
+                    <span className="shrink-0 text-parchment/50">{entry.latencyMs} ms</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="metrics-title">
+          <div className="mb-4">
+            <p className="font-pixel text-[9px] tracking-wide text-cyan">DADOS OBSERVADOS</p>
+            <h2 id="metrics-title" className="mt-2 text-base font-semibold">Métricas HTTP</h2>
+          </div>
+          <div className="grid gap-px border border-panel-edge bg-panel-edge sm:grid-cols-2">
+            <article className="bg-[#090b16] p-5 sm:p-6">
+              <p className="text-xs text-parchment/55">TOTAL DE REQUISIÇÕES</p>
+              <p className="mt-3 text-2xl font-semibold text-parchment">
+                {counters ? Math.round(counters.total).toLocaleString() : "Aguardando dados"}
+              </p>
+              <p className="mt-2 text-xs text-parchment/40">Contador exposto pelo serviço</p>
+            </article>
+            <article className="bg-[#090b16] p-5 sm:p-6">
+              <p className="text-xs text-parchment/55">CHAMADAS /WORK</p>
+              <p className="mt-3 text-2xl font-semibold text-cyan">
+                {counters ? Math.round(counters.work).toLocaleString() : "Aguardando dados"}
+              </p>
+              <p className="mt-2 text-xs text-parchment/40">Contador Prometheus para path /work</p>
+            </article>
+          </div>
+
+          <div className="mt-4 border border-panel-edge bg-[#090b16]">
+            <div className="flex items-center justify-between gap-3 border-b border-panel-edge px-5 py-3">
+              <h3 className="text-xs font-semibold text-parchment/75">Distribuição por código HTTP</h3>
+              <span className="text-[10px] text-parchment/40">Scrape Prometheus · 5 s</span>
+            </div>
+            {statusLines.length === 0 ? (
+              <p className="px-5 py-4 text-xs text-parchment/45">Aguardando dados de scrape.</p>
+            ) : (
+              <ul className="divide-y divide-panel-edge">
+                {statusLines.map(([status, value]) => (
+                  <li key={status} className="flex items-center justify-between px-5 py-3 text-xs">
+                    <span className="flex items-center gap-2 text-parchment/70">
+                      <span
+                        aria-hidden="true"
+                        className={`size-2 ${status === "200" ? "bg-emerald-300" : "bg-rose-300"}`}
+                      />
+                      HTTP {status}
+                    </span>
+                    <span className="text-parchment/60">{Math.round(value).toLocaleString()} reqs</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+
+        <details className="group border border-panel-edge bg-[#080a14]">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-sm text-parchment/75 marker:content-none hover:text-cyan focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan">
+            <span>
+              <span className="block font-semibold">Ferramentas do laboratório</span>
+              <span className="mt-1 block text-xs text-parchment/45">
+                Controles de falha para demonstração de alertas.
+              </span>
+            </span>
+            <span aria-hidden="true" className="text-cyan transition-transform group-open:rotate-45">+</span>
+          </summary>
+          <div className="space-y-4 border-t border-panel-edge p-5 sm:p-6">
+            <p className="text-xs text-parchment/55">
+              Alterar o modo modifica o comportamento do serviço monitorado. Use apenas no laboratório local.
+              Modo atual: <strong className="font-semibold text-parchment">{mode ?? "sem dados"}</strong>.
+            </p>
+            <label className="block max-w-xl">
+              <span className="text-xs text-parchment/65">LAB_TOKEN</span>
+              <input
+                type="password"
+                value={labToken}
+                onChange={(event) => setLabToken(event.target.value)}
+                placeholder="Cole o LAB_TOKEN do arquivo .env"
+                className="mt-2 w-full border border-panel-edge bg-[#05060f] px-3 py-2.5 text-sm text-parchment outline-none placeholder:text-parchment/30 focus:border-cyan focus-visible:ring-2 focus-visible:ring-cyan/40"
+              />
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {(["normal", "slow", "offline"] as const).map((newMode) => (
+                <button
+                  key={newMode}
+                  type="button"
+                  onClick={() => void applyMode(newMode)}
+                  disabled={modeBusy}
+                  className="border border-panel-edge px-3 py-2 text-xs text-parchment/70 transition-colors hover:border-cyan/60 hover:text-cyan disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan"
+                >
+                  {newMode === "normal" ? "Normal (200)" : newMode === "slow" ? "Lento (+1,5 s)" : "Offline (503)"}
+                </button>
+              ))}
+            </div>
+            {modeMessage && (
+              <p role="status" className="text-xs text-parchment/70">
+                {modeMessage}
               </p>
             )}
           </div>
-        </div>
-      </section>
+        </details>
+      </div>
     </main>
   );
 }

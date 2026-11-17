@@ -14,7 +14,7 @@
 
 **Investigar:**
 
-1. Consulte `/health` do serviço em http://localhost:8001/health.
+1. Consulte `/health` do serviço em http://localhost:8011/health.
 2. Abra Laboratório e confira se o modo indisponível foi aplicado intencionalmente.
 3. Execute `docker compose logs --tail 100 web-demo api`.
 4. Verifique alvos de coleta em http://localhost:9090/targets.
