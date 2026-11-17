@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   LogOut,
   Mail,
+  Menu,
   Network,
   Radio,
   RefreshCw,
@@ -22,6 +23,11 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { formatMetric, request } from "./api";
+import Sidebar from "./Sidebar";
+import {
+  readSidebarPreference,
+  saveSidebarPreference,
+} from "./sidebarPreference";
 import {
   CollectionNote,
   IncidentsList,
@@ -139,6 +145,8 @@ export default function App({
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(0);
   const [now, setNow] = useState(() => Date.now() / 1000);
+  const [collapsed, setCollapsed] = useState(readSidebarPreference);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now() / 1000), 1000);
@@ -248,6 +256,15 @@ export default function App({
     location.hash = next;
     setPage(next);
   }
+
+  function toggleSidebar() {
+    setCollapsed((previous) => {
+      const value = !previous;
+      saveSidebarPreference(value);
+      return value;
+    });
+  }
+
   const activeIncidents = incidents.filter(
     (item) => item.status === "firing",
   ).length;
@@ -366,66 +383,38 @@ export default function App({
   const title = pageTitles[page];
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <a href="#overview" className="brand" aria-label="AulaRedes, início">
-          <span className="brand-mark">
-            <Network size={22} />
-          </span>
-          <span>
-            Aula<span className="brand-light">Redes</span>
-            <small>OBSERVABILIDADE</small>
-          </span>
-        </a>
-        <div className="workspace">
-          <span className="workspace-icon">
-            <Terminal size={18} />
-          </span>
-          <div>
-            <strong>Projeto de redes</strong>
-            <small>Laboratório local</small>
-          </div>
-          <span className="workspace-dot" />
-        </div>
-        <div className="nav-caption">MONITORAMENTO</div>
-        <nav aria-label="Navegação principal">
-          {navigation.map(({ id, label, icon: Icon }) => (
-            <a
-              href={`#${id}`}
-              key={id}
-              className={`nav-item ${page === id ? "active" : ""}`}
-              aria-label={label}
-              aria-current={page === id ? "page" : undefined}
-            >
-              <Icon size={18} />
-              <span>{label}</span>
-              {id === "incidents" && activeIncidents > 0 && (
-                <span className="nav-count">{activeIncidents}</span>
-              )}
-            </a>
-          ))}
-        </nav>
-        <div className="sidebar-bottom">
-          <div className="version-pill">
-            ETAPA 06 <span>TRÁFEGO E ACESSO</span>
-          </div>
-          <p>
-            Da requisição ao alerta.
-            <br />
-            Um sinal de cada vez.
-          </p>
-          <div className="sidebar-author">
-            <span>AR</span>
-            <div>
-              <strong>Trabalho final</strong>
-              <small>Redes de Computadores</small>
-            </div>
-          </div>
-        </div>
-      </aside>
+    <div
+      className={`app-shell ${collapsed ? "sidebar-collapsed" : ""} ${
+        mobileOpen ? "sidebar-open" : ""
+      }`}
+    >
+      {mobileOpen && (
+        <div
+          className="sidebar-overlay"
+          aria-hidden="true"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+      <Sidebar
+        navigation={navigation}
+        page={page}
+        activeIncidents={activeIncidents}
+        collapsed={collapsed}
+        onToggle={toggleSidebar}
+        mobileOpen={mobileOpen}
+        onCloseMobile={() => setMobileOpen(false)}
+      />
       <div className="main-shell">
         <header className="topbar">
           <div className="breadcrumbs">
+            <button
+              type="button"
+              className="icon-button menu-button mobile-only"
+              onClick={() => setMobileOpen(true)}
+              aria-label="Abrir navegação"
+            >
+              <Menu size={18} />
+            </button>
             <span>Monitoramento</span>
             <ChevronRight size={13} />
             <strong>{title.title}</strong>
