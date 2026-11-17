@@ -1,17 +1,26 @@
 :root {
-  font-family: "DM Sans", "Segoe UI", sans-serif;
-  color: oklch(28% 0.021 285);
-  background: oklch(97.2% 0.004 285);
+  font-family: "IBM Plex Mono", "Segoe UI", monospace;
+  color: #e8e6f0;
+  background: #05060f;
   font-synthesis: none;
   font-weight: 400;
   font-size: 14px;
-  --surface: oklch(99.5% 0.002 285);
-  --line: oklch(91.7% 0.008 285);
-  --muted: oklch(54% 0.019 285);
-  --accent: oklch(51% 0.18 295);
-  --green: oklch(43% 0.09 164);
-  --red: oklch(48% 0.16 25);
-  --yellow: oklch(45% 0.1 75);
+  --bg: #05060f;
+  --panel: #0a0b14;
+  --panel-raised: #101326;
+  --surface: #0a0b14;
+  --surface-raised: #101326;
+  --line: #1b1f3a;
+  --muted: #9aa3c0;
+  --text: #e8e6f0;
+  --text-soft: #c9cfe4;
+  --accent: #00e5ff;
+  --accent-violet: #8b5cf6;
+  --accent-magenta: #ff2fd6;
+  --green: #00e5a8;
+  --red: #ff5470;
+  --yellow: #ffb400;
+  --pixel: "Press Start 2P", "IBM Plex Mono", monospace;
 }
 * {
   box-sizing: border-box;
