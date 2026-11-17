@@ -50,7 +50,7 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Execute python scripts/configure.py}
       HTTP_CONFIG_FILE: /etc/aularedes/runtime/http.json
     volumes: ["./infra:/etc/aularedes/runtime:ro"]
-    ports: ["127.0.0.1:8001:8001"]
+    ports: ["127.0.0.1:8011:8001"]
 
   postgres:
     image: aularedes-postgres:17.11-gosu1.19-go1.27.3

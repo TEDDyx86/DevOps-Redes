@@ -29,13 +29,14 @@ python scripts/collect_resources.py --background
 
 Ou execute `./scripts/start.ps1` no PowerShell. Se a política do computador impedir scripts, use os comandos acima, sem alterar a política.
 
-- Dashboard: **http://localhost:8000**
+- Dashboard Workbyte (landing pública → login → painel): **http://localhost:8000**
 - Caixa de e-mails de alerta: **http://localhost:8025**
 - Caixa de mensagens do SMTP monitorado: **http://localhost:8026**
 - Documentação da API: http://localhost:8000/docs
 - Prometheus: http://localhost:9090
 - Alertmanager: http://localhost:9093
-- Serviço HTTP monitorado: http://localhost:8001/work
+- Demo web (landing/login/painel): http://localhost:8011
+- Serviço HTTP monitorado: http://localhost:8011/work
 - Dashboard PostgreSQL: http://localhost:8000/#postgres
 - Dashboard DNS: http://localhost:8000/#dns
 - Dashboard SMTP: http://localhost:8000/#smtp
