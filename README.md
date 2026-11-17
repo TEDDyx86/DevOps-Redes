@@ -35,7 +35,7 @@ Ou execute `./scripts/start.ps1` no PowerShell. Se a política do computador imp
 - Documentação da API: http://localhost:8000/docs
 - Prometheus: http://localhost:9090
 - Alertmanager: http://localhost:9093
-- Demo web (landing/login/painel): http://localhost:8011
+- Web-demo (landing/login/painel + aba de simulação de ataques): http://localhost:8011
 - Serviço HTTP monitorado: http://localhost:8011/work
 - Dashboard PostgreSQL: http://localhost:8000/#postgres
 - Dashboard DNS: http://localhost:8000/#dns
