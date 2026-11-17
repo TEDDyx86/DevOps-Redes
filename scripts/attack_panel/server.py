@@ -1,4 +1,4 @@
-"""Servidor do painel de ataques: API + SSE + página estática, apenas localhost."""
+﻿"""Servidor do painel de ataques: API + SSE + pÃ¡gina estÃ¡tica, apenas localhost."""
 import argparse
 import time
 from pathlib import Path
@@ -8,9 +8,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
-from scripts.attack_panel import runners, verification
-from scripts.attack_panel.catalog import SPECS, catalog
-from scripts.attack_panel.engine import Engine
+from demo.attacks import runners, verification
+from demo.attacks.catalog import SPECS, catalog
+from demo.attacks.engine import Engine
 
 ROOT = Path(__file__).resolve().parents[2]
 STATIC = Path(__file__).resolve().parent / "static"
@@ -46,7 +46,7 @@ class StartBody(BaseModel):
 def create_app(engine=None):
     if engine is None:
         engine = Engine(runners=runners.RUNNERS, verifier=build_verifier())
-    app = FastAPI(title="Painel de Ataques do Laboratório")
+    app = FastAPI(title="Painel de Ataques do LaboratÃ³rio")
     app.state.engine = engine
 
     @app.get("/api/attacks")
@@ -98,7 +98,7 @@ def create_app(engine=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Painel de ataques do laboratório (somente localhost)")
+    parser = argparse.ArgumentParser(description="Painel de ataques do laboratÃ³rio (somente localhost)")
     parser.add_argument("--port", type=int, default=8002)
     arguments = parser.parse_args()
     uvicorn.run(create_app(), host=HOST, port=arguments.port, log_level="info")

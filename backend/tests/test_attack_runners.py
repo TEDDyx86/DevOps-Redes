@@ -1,9 +1,9 @@
-import threading
+﻿import threading
 
 import httpx
 
-from scripts.attack_panel import catalog, runners
-from scripts.attack_panel.engine import Cancelled
+from demo.attacks import catalog, runners
+from demo.attacks.engine import Cancelled
 
 
 class FakeCtx:
@@ -38,7 +38,7 @@ def test_forca_bruta_no_servico_faz_tentativas_401_e_define_alerta(monkeypatch):
 
     def handler(request):
         chamadas.append(request.url.path)
-        return httpx.Response(401, json={"detail": "Token inválido"})
+        return httpx.Response(401, json={"detail": "Token invÃ¡lido"})
 
     monkeypatch.setattr(runners, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(handler), trust_env=False))
     monkeypatch.setattr(runners, "BRUTEFORCE_HOLD", 0)
@@ -54,7 +54,7 @@ def test_forca_bruta_no_painel_ataca_login_e_define_alerta(monkeypatch):
 
     def handler(request):
         corpos.append(request.read())
-        return httpx.Response(401, json={"detail": "Credenciais inválidas"})
+        return httpx.Response(401, json={"detail": "Credenciais invÃ¡lidas"})
 
     monkeypatch.setattr(runners, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(handler), trust_env=False))
     monkeypatch.setattr(runners, "BRUTEFORCE_HOLD", 0)

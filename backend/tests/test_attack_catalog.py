@@ -1,6 +1,6 @@
-import pytest
+﻿import pytest
 
-from scripts.attack_panel.catalog import catalog, clean_params, expected_alerts, SPECS
+from demo.attacks.catalog import catalog, clean_params, expected_alerts, SPECS
 
 
 def test_catalogo_tem_os_oito_ataques_combinados():

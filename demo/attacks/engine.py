@@ -1,4 +1,4 @@
-"""Motor do painel de ataques: fila com um ataque por vez, fases e eventos."""
+﻿"""Motor do painel de ataques: fila com um ataque por vez, fases e eventos."""
 import copy
 import json
 import queue
@@ -7,13 +7,13 @@ import time
 import uuid
 from datetime import datetime, timezone
 
-from scripts.attack_panel import catalog
+from demo.attacks import catalog
 
 FINAL = ("concluido", "interrompido", "falhou")
 
 
 class Cancelled(Exception):
-    """Sinal interno de interrupção solicitada."""
+    """Sinal interno de interrupÃ§Ã£o solicitada."""
 
 
 def _now():
@@ -104,7 +104,7 @@ class Engine:
                     return None
         if context is not None:
             context.request_cancel()
-        self._publish("status", entry_id=entry_id, status="interrompendo", message="Interrupção solicitada")
+        self._publish("status", entry_id=entry_id, status="interrompendo", message="InterrupÃ§Ã£o solicitada")
         return {"entry_id": entry_id, "status": "interrompendo"}
 
     def snapshot(self):

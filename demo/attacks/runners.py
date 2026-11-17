@@ -1,4 +1,4 @@
-"""Runners dos ataques: efeitos controlados a partir do host, sempre reversíveis."""
+﻿"""Runners dos ataques: efeitos controlados a partir do host, sempre reversÃ­veis."""
 import os
 import subprocess
 import threading
@@ -9,8 +9,8 @@ from pathlib import Path
 
 import httpx
 
-from scripts.attack_panel.engine import Cancelled
-from scripts.attack_panel import verification
+from demo.attacks.engine import Cancelled
+from demo.attacks import verification
 from scripts.lab_session import authenticate
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -76,7 +76,7 @@ def bruteforce_servico(ctx, params):
             espera = BURST_INTERVAL - (time.perf_counter() - started)
             if espera > 0:
                 time.sleep(espera)
-    ctx.log("Maré de tentativas concluída; aguardando janela de 1 minuto e o 'for: 30s' do alerta")
+    ctx.log("MarÃ© de tentativas concluÃ­da; aguardando janela de 1 minuto e o 'for: 30s' do alerta")
     _hold(ctx, BRUTEFORCE_HOLD)
 
 
@@ -101,7 +101,7 @@ def bruteforce_painel(ctx, params):
             espera = BURST_INTERVAL - (time.perf_counter() - started)
             if espera > 0:
                 time.sleep(espera)
-    ctx.log("Logins com senha errada concluídos; aguardando janela de falhas recentes e o 'for: 10s' do alerta")
+    ctx.log("Logins com senha errada concluÃ­dos; aguardando janela de falhas recentes e o 'for: 10s' do alerta")
     _hold(ctx, BRUTEFORCE_HOLD)
 
 
@@ -132,7 +132,7 @@ def sobrecarga_http(ctx, params):
             ctx.progress(**snapshot)
             local += 1
             if local % 50 == 0:
-                ctx.log(f"Maré em andamento: {snapshot['requisicoes']} requisições")
+                ctx.log(f"MarÃ© em andamento: {snapshot['requisicoes']} requisiÃ§Ãµes")
 
     clientes = [make_client() for _ in range(workers)]
     try:
@@ -144,7 +144,7 @@ def sobrecarga_http(ctx, params):
             client.close()
     if ctx.cancelled():
         raise Cancelled()
-    ctx.log(f"Maré concluída: {shared['requisicoes']} requisições; aguardando 'for: 30s' dos alertas")
+    ctx.log(f"MarÃ© concluÃ­da: {shared['requisicoes']} requisiÃ§Ãµes; aguardando 'for: 30s' dos alertas")
     _hold(ctx, SOBRECARGA_HOLD)
 
 
@@ -163,7 +163,7 @@ def indisponibilidade_http(ctx, params):
             if restore.status_code == 200:
                 ctx.log("Modo normal restaurado")
             else:
-                ctx.log(f"ATENÇÃO: restauração do modo falhou com HTTP {restore.status_code}; restaurar manualmente")
+                ctx.log(f"ATENÃ‡ÃƒO: restauraÃ§Ã£o do modo falhou com HTTP {restore.status_code}; restaurar manualmente")
 
 
 STOP_ALERTS = {"dns": "DNSIndisponivel", "smtp": "SMTPIndisponivel",
@@ -195,7 +195,7 @@ def _traffic_attack(ctx, service, duracao, expected):
                 ctx.progress(tentativas=counts.get("attempted", 0), sucesso=counts.get("successful", 0),
                              falhas=counts.get("failed", 0))
                 if expected[0] in _firing(client):
-                    ctx.log(f"Alerta {expected[0]} em firing; encerrando execução para verificação")
+                    ctx.log(f"Alerta {expected[0]} em firing; encerrando execuÃ§Ã£o para verificaÃ§Ã£o")
                     break
                 time.sleep(1)
         finally:
@@ -231,7 +231,7 @@ def adulteracao_config(ctx, params):
         raise FileNotFoundError(relativo)
     original = caminho.read_bytes()
     caminho.write_bytes(original + b"\n# linha adulterada pelo painel de ataques\n")
-    ctx.log(f"Arquivo {relativo} adulterado; coletor de integridade deve detectar a mudança")
+    ctx.log(f"Arquivo {relativo} adulterado; coletor de integridade deve detectar a mudanÃ§a")
     try:
         _hold(ctx, duracao)
     finally:
@@ -246,20 +246,20 @@ def interrupcao_servico(ctx, params):
         raise ValueError("alvo_invalido")
     ctx.set_expected_alerts([STOP_ALERTS[alvo]])
     _docker_compose("stop", alvo)
-    ctx.log(f"Serviço {alvo} parado; sondas correspondentes devem falhar")
+    ctx.log(f"ServiÃ§o {alvo} parado; sondas correspondentes devem falhar")
     try:
         deadline = time.monotonic() + max(duracao, 90)
         with make_client() as client:
             while time.monotonic() < deadline:
                 ctx.check_cancelled()
                 if STOP_ALERTS[alvo] in _firing(client):
-                    ctx.log(f"Alerta {STOP_ALERTS[alvo]} em firing; restaurando serviço")
+                    ctx.log(f"Alerta {STOP_ALERTS[alvo]} em firing; restaurando serviÃ§o")
                     break
                 ctx.progress(segundos_restantes=max(0, int(deadline - time.monotonic())))
                 time.sleep(1)
     finally:
         _docker_compose("start", alvo)
-        ctx.log(f"Serviço {alvo} reiniciado")
+        ctx.log(f"ServiÃ§o {alvo} reiniciado")
 
 
 RUNNERS = {

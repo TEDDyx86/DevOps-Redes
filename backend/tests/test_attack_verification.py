@@ -1,7 +1,7 @@
-import httpx
+﻿import httpx
 import pytest
 
-from scripts.attack_panel import verification
+from demo.attacks import verification
 
 
 def transport(payload, status=200):

@@ -1,9 +1,9 @@
-import httpx
+﻿import httpx
 import pytest
 from fastapi.testclient import TestClient
 
+from demo.attacks.catalog import CATALOG
 from scripts.attack_panel import server
-from scripts.attack_panel.catalog import CATALOG
 
 
 class FakeEngine:

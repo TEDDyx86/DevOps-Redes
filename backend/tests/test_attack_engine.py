@@ -1,7 +1,7 @@
-import threading
+﻿import threading
 import time
 
-from scripts.attack_panel.engine import Cancelled, Engine
+from demo.attacks.engine import Cancelled, Engine
 
 
 def wait_for(predicate, timeout=5.0):
@@ -95,7 +95,7 @@ def test_interrupcao_do_ataque_em_execucao_resulta_em_interrompido():
 
 def test_falha_do_runner_registra_tipo_do_erro_sem_expor_detalhes():
     def runner(ctx, params):
-        raise RuntimeError("detalhe sensível do erro")
+        raise RuntimeError("detalhe sensÃ­vel do erro")
 
     engine = make_engine(runner)
     engine.enqueue("bruteforce-servico")
@@ -104,7 +104,7 @@ def test_falha_do_runner_registra_tipo_do_erro_sem_expor_detalhes():
     assert historico["status"] == "falhou"
     assert historico["error"] == "RuntimeError"
     corpo = str(engine.recent_events(500))
-    assert "detalhe sensível" not in corpo
+    assert "detalhe sensÃ­vel" not in corpo
     engine.stop()
 
 
