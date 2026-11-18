@@ -1,7 +1,7 @@
 ﻿import httpx
 import pytest
 
-from demo.attacks import verification
+from backend.app.attacks import verification
 
 
 def transport(payload, status=200):

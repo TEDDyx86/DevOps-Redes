@@ -6,6 +6,7 @@ import {
   CircleX,
   Clock3,
   Database,
+  FlaskConical,
   Globe2,
   Mail,
   TriangleAlert,
@@ -20,7 +21,13 @@ import {
   YAxis,
 } from "recharts";
 import { formatMetric } from "./api";
-import type { ChartSample, Incident, ServiceSummary, Status } from "./types";
+import type {
+  ChartSample,
+  Incident,
+  Overview,
+  ServiceSummary,
+  Status,
+} from "./types";
 
 export const statusText: Record<Status, string> = {
   ok: "Operacional",
@@ -107,20 +114,20 @@ export function SignalChart({
               <CartesianGrid
                 strokeDasharray="3 5"
                 vertical={false}
-                stroke="#e8e7ee"
+                stroke="rgba(255, 255, 255, 0.08)"
               />
               <XAxis
                 dataKey="timestamp"
                 type="number"
                 domain={["dataMin", "dataMax"]}
                 tickFormatter={(value) => timeLabel(value).slice(0, 5)}
-                tick={{ fill: "#7b7a8b", fontSize: 11 }}
+                tick={{ fill: "#9aa3c0", fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
                 minTickGap={42}
               />
               <YAxis
-                tick={{ fill: "#7b7a8b", fontSize: 11 }}
+                tick={{ fill: "#9aa3c0", fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
                 domain={[0, "auto"]}
@@ -135,15 +142,18 @@ export function SignalChart({
                   title,
                 ]}
                 contentStyle={{
+                  backgroundColor: "#0d1020",
                   borderRadius: 8,
-                  border: "1px solid #dedce8",
+                  border: "1px solid #262d50",
+                  color: "#e8e6f0",
                   fontSize: 12,
                 }}
+                labelStyle={{ color: "#9aa3c0", marginBottom: 4 }}
               />
               <Line
                 type="linear"
                 dataKey={metric}
-                stroke={metric !== "latency_ms" ? "#7557d3" : "#328c94"}
+                stroke={metric !== "latency_ms" ? "#00e5ff" : "#00e5a8"}
                 strokeWidth={2.4}
                 dot={false}
                 activeDot={{ r: 4 }}
@@ -314,5 +324,54 @@ export function CollectionNote() {
       <Clock3 size={13} />¹ Percentual de sondas bem-sucedidas nas amostras
       disponíveis do período. Coleta a cada 5 segundos.
     </p>
+  );
+}
+
+function errorCodesSummary(codes: Record<string, number> | null | undefined) {
+  if (codes == null) return "—";
+  const entries = Object.entries(codes);
+  if (!entries.length) return "Sem erros no período";
+  return entries.map(([code, count]) => `${code}: ${count}`).join(" · ");
+}
+
+export function ServiceDetails({
+  service,
+  onTestFailure,
+}: {
+  service?: Overview["service"] | null;
+  onTestFailure: () => void;
+}) {
+  return (
+    <section className="service-details">
+      <div>
+        <span>Requisições por segundo</span>
+        <strong>
+          {formatMetric(service?.rps, 2)} <small>req/s</small>
+        </strong>
+      </div>
+      <div>
+        <span>Respostas 4xx e 5xx</span>
+        <strong>
+          {formatMetric(service?.error_percent)} <small>%</small>
+        </strong>
+      </div>
+      <div>
+        <span>Códigos de erro (janela)</span>
+        <strong className="error-codes-summary">
+          {errorCodesSummary(service?.error_codes)}
+        </strong>
+      </div>
+      <div>
+        <span>Conexões ativas</span>
+        <strong>{formatMetric(service?.connections ?? null, 0)}</strong>
+      </div>
+      <div>
+        <span>Estado da sonda</span>
+        <StatusBadge status={service?.status ?? "unknown"} />
+      </div>
+      <button className="button secondary" onClick={onTestFailure}>
+        Testar falha <FlaskConical size={16} />
+      </button>
+    </section>
   );
 }

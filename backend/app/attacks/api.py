@@ -1,14 +1,13 @@
-"""Rotas do painel de ataques do web-demo, acopladas à sessão da demo."""
+"""Rotas do painel de ataques integradas à autenticação do painel de monitoramento."""
 import time
 
-from fastapi import HTTPException, Request
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from demo.attacks import runners, verification
-from demo.attacks.catalog import SPECS, catalog
-from demo.attacks.engine import Engine
-from demo.session import SESSION_COOKIE, read_session
+from backend.app.attacks import runners, verification
+from backend.app.attacks.catalog import SPECS, catalog
+from backend.app.attacks.engine import Engine
 
 VERIFY_ATTEMPTS = 6
 VERIFY_INTERVAL = 5
@@ -26,11 +25,12 @@ def build_verifier():
                 ultimo = verification.verify(expected, firing)
             except Exception:
                 ultimo = verification.verify(expected, None)
-            if ultimo["fired"] or cancelled():
+            if not ultimo["missing"] or cancelled():
                 return ultimo
             if attempt < VERIFY_ATTEMPTS - 1:
                 time.sleep(VERIFY_INTERVAL)
         return ultimo
+
     return verify
 
 
@@ -42,30 +42,23 @@ def build_engine():
     return Engine(runners=runners.RUNNERS, verifier=build_verifier())
 
 
-def register(app, token, engine=None):
+def register(app, engine=None):
     if engine is None:
         engine = build_engine()
     app.state.attack_engine = engine
 
-    def usuario(request: Request):
-        session = read_session(request.cookies.get(SESSION_COOKIE, ""), token)
-        if session is None:
-            raise HTTPException(401, "Sessão obrigatória")
-        return session
+    router = APIRouter(prefix="/api")
 
-    @app.get("/api/attacks")
-    def attacks(request: Request):
-        usuario(request)
+    @router.get("/attacks")
+    def attacks():
         return {"attacks": catalog()}
 
-    @app.get("/api/queue")
-    def queue_view(request: Request):
-        usuario(request)
+    @router.get("/queue")
+    def queue_view():
         return engine.snapshot()
 
-    @app.post("/api/attacks/{attack_id}/start")
-    def start(attack_id: str, request: Request, body: StartBody | None = None):
-        usuario(request)
+    @router.post("/attacks/{attack_id}/start")
+    def start(attack_id: str, body: StartBody | None = None):
         if attack_id not in SPECS:
             raise HTTPException(404, "ataque_desconhecido")
         try:
@@ -73,18 +66,20 @@ def register(app, token, engine=None):
         except ValueError as error:
             raise HTTPException(400, str(error))
 
-    @app.post("/api/queue/{entry_id}/cancel")
-    def cancel(entry_id: str, request: Request):
-        usuario(request)
+    @router.post("/queue/{entry_id}/cancel")
+    def cancel(entry_id: str):
         view = engine.cancel(entry_id)
         if view is None:
             raise HTTPException(404, "entrada_desconhecida")
         return view
 
-    @app.get("/api/events")
-    def events(request: Request):
-        usuario(request)
-        return StreamingResponse(engine.subscribe(), media_type="text/event-stream",
-                                 headers={"Cache-Control": "no-store"})
+    @router.get("/events")
+    def events():
+        return StreamingResponse(
+            engine.subscribe(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-store"},
+        )
 
+    app.include_router(router)
     return engine

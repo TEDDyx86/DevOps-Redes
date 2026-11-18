@@ -4,16 +4,16 @@ import { describe, expect, it } from "vitest";
 import Landing from "./Landing";
 import Panel from "./Panel";
 
-describe("public landing visual structure", () => {
-  it("keeps a direct login path and removes simulated showcase sections", () => {
+describe("public storefront visual structure", () => {
+  it("renders the mini store catalog shell without attack panel button", () => {
     const markup = renderToStaticMarkup(createElement(Landing));
 
-    expect(markup).toContain("START / ENTRAR");
-    expect(markup).toContain("Sinal do serviço");
-    expect(markup).toContain("Métricas HTTP");
-    expect(markup).not.toContain("POP-UPS &amp; DIÁLOGOS RETRÔ");
-    expect(markup).not.toContain("RADAR &amp; CONSOLE VETORIAL");
-    expect(markup).not.toContain("DESKTOP MONOCROMÁTICO");
+    expect(markup).toContain("WORKBYTE");
+    expect(markup).toContain("STORE");
+    expect(markup).toContain("Consoles, Periféricos &amp; Hardware");
+    expect(markup).not.toContain("Painel / Ataques");
+    expect(markup).not.toContain("TESTAR 404");
+    expect(markup).toContain("Últimos pedidos gravados no PostgreSQL");
   });
 });
 

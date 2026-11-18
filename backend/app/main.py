@@ -33,6 +33,7 @@ from .integrity import IntegrityMonitor
 from .vulnerabilities import VulnerabilityMonitor
 from .resources import ResourceMonitor
 from .resource_metrics import overview as resource_overview
+from .attacks.api import build_engine as build_attack_engine, register as register_attacks
 
 
 class Alert(BaseModel):
@@ -111,6 +112,7 @@ def create_app(settings: Settings | None = None, transport=None):
             try:
                 yield
             finally:
+                app.state.attack_engine.stop()
                 await app.state.traffic_load.stop()
                 tasks = [item for item in [task, postgres_task, workload_task, dns_task, dns_workload_task, smtp_task, smtp_workload_task, traffic_task, integrity_task, vulnerability_task, resource_task] if item is not None]
                 for item in tasks:
@@ -121,6 +123,7 @@ def create_app(settings: Settings | None = None, transport=None):
 
     app = FastAPI(title="AulaRedes API", version="0.8.0", lifespan=lifespan)
     install_auth(app, settings)
+    register_attacks(app, build_attack_engine())
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "api", "testserver"])
 
     def require_lab(request: Request, x_lab_token: str = Header(default="")):

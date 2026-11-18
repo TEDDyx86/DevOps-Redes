@@ -11,6 +11,8 @@ LATENCY = 'probe_duration_seconds{job="platform"}'
 RPS = 'sum(rate(demo_http_requests_total{job="web-demo",path="/work"}[1m]))'
 P95 = 'histogram_quantile(0.95, sum by(le)(rate(demo_http_duration_seconds_bucket{job="web-demo",path="/work"}[1m])))'
 ERROR_RATE = '(sum(rate(demo_http_requests_total{job="web-demo",path="/work",status=~"4..|5.."}[1m])) or vector(0)) / sum(rate(demo_http_requests_total{job="web-demo",path="/work"}[1m])) * 100'
+CONNECTIONS = 'demo_http_requests_inflight{job="web-demo"}'
+ERROR_CODES = 'sum by(status)(increase(demo_http_requests_total{{job="web-demo",status=~"4..|5.."}}[{window}]))'
 
 
 def finite(value):
@@ -24,6 +26,20 @@ def finite(value):
 def scalar(data):
     result = data.get("result", [])
     return finite(result[0]["value"][1]) if result else None
+
+
+def status_counts(data):
+    counts = {}
+    for item in data.get("result", []):
+        code = item.get("metric", {}).get("status")
+        if not code or not code.isdigit():
+            continue
+        value = finite(item.get("value", [None, None])[1])
+        if value is not None and value > 0:
+            rounded = round(value)
+            if rounded > 0:
+                counts[code] = rounded
+    return dict(sorted(counts.items()))
 
 
 def classify(success, latency, checked_at, now, warning_seconds=.5):
@@ -62,13 +78,16 @@ class PrometheusClient:
             RPS, P95, ERROR_RATE,
             f"avg_over_time({PROBE}[{window}]) * 100",
             'max(timestamp(demo_http_requests_total{job="web-demo",path="/work"}))',
+            CONNECTIONS,
+            ERROR_CODES.format(window=window),
         ]
         values = await asyncio.gather(*(self.query(q) for q in expressions))
-        success, latency, checked_at, rps, p95, errors, availability, demo_at = map(scalar, values)
+        success, latency, checked_at, rps, p95, errors, availability, demo_at, connections = map(scalar, values[:9])
+        error_codes = status_counts(values[9])
         status = classify(success, latency, checked_at, now)
         # Prometheus lookback can return old values after a target disappears.
         if demo_at is None or now - demo_at > 20:
-            rps = p95 = errors = None
+            rps = p95 = errors = connections = error_codes = None
         if status == "unknown":
             latency = None
         series_data = await asyncio.gather(*(
@@ -91,6 +110,7 @@ class PrometheusClient:
                 "latency_ms": latency * 1000 if latency is not None else None,
                 "p95_ms": p95 * 1000 if p95 is not None else None,
                 "rps": rps, "error_percent": errors, "availability_percent": availability,
+                "connections": connections, "error_codes": error_codes,
             },
             "series": [rows[key] for key in sorted(rows)],
         }

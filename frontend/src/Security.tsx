@@ -30,6 +30,8 @@ const outcomes: Record<string, string> = {
   logout: "Sessão encerrada",
 };
 
+type SecuritySection = "all" | "vulnerabilities" | "integrity" | "traffic" | "auth";
+
 export default function Security({
   incidents,
   refresh,
@@ -37,6 +39,7 @@ export default function Security({
   incidents: Incident[];
   refresh: number;
 }) {
+  const [section, setSection] = useState<SecuritySection>("all");
   const [data, setData] = useState<SecurityData | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -79,10 +82,39 @@ export default function Security({
       data.failures_recent.account >= data.account_limit);
   return (
     <>
-      <Vulnerabilities refresh={refresh} incidents={incidents} />
-      <Integrity refresh={refresh} incidents={incidents} />
-      <Traffic refresh={refresh} incidents={incidents} />
-      <h2 className="security-section-title">Acesso ao painel</h2>
+      <div className="security-tabs" role="group" aria-label="Áreas de segurança">
+        {(
+          [
+            ["all", "Todas as áreas"],
+            ["vulnerabilities", "Vulnerabilidades"],
+            ["integrity", "Integridade"],
+            ["traffic", "Tráfego"],
+            ["auth", "Autenticação"],
+          ] as [SecuritySection, string][]
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            className={`filter-pill ${section === id ? "active" : ""}`}
+            onClick={() => setSection(id)}
+            aria-pressed={section === id}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {(section === "all" || section === "vulnerabilities") && (
+        <Vulnerabilities refresh={refresh} incidents={incidents} />
+      )}
+      {(section === "all" || section === "integrity") && (
+        <Integrity refresh={refresh} incidents={incidents} />
+      )}
+      {(section === "all" || section === "traffic") && (
+        <Traffic refresh={refresh} incidents={incidents} />
+      )}
+      {(section === "all" || section === "auth") && (
+        <>
+          <h2 className="security-section-title">Acesso ao painel</h2>
       {error && (
         <div className="notice error" role="alert">
           <TriangleAlert size={17} />
@@ -198,6 +230,8 @@ export default function Security({
           compact
         />
       </section>
+        </>
+      )}
     </>
   );
 }

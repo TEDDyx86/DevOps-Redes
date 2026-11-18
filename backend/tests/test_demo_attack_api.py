@@ -1,19 +1,18 @@
+from fastapi.testclient import TestClient as PublicClient
 import pytest
-from fastapi.testclient import TestClient
 
+import backend.app.main as platform_main
 import demo.main as demo_main
-from demo.attacks.api import register as registrar_real
-from demo.attacks.catalog import CATALOG
-from demo.session import make_session
-
-TOKEN = "demo-secret"
-COOKIE = {"demo_session": make_session("admin", TOKEN)}
+from backend.app.attacks.catalog import CATALOG
+from backend.app.config import Settings
+from backend.tests.auth_helpers import AuthenticatedClient as TestClient, PASSWORD
 
 
 class FakeEngine:
     def __init__(self):
         self.started = []
         self.cancelled = []
+        self.stopped = False
 
     def enqueue(self, attack_id, params=None):
         if params and any(value == 9999 for value in params.values()):
@@ -33,64 +32,81 @@ class FakeEngine:
     def subscribe(self):
         yield 'data: {"type": "status"}\n\n'
 
-
-def registrar_fake(app, token, engine=None):
-    registrar_real(app, token, FakeEngine())
+    def stop(self):
+        self.stopped = True
 
 
 @pytest.fixture()
-def client(monkeypatch):
-    monkeypatch.setattr(demo_main, "register_attacks", registrar_fake)
-    with TestClient(demo_main.create_demo(TOKEN, admin_username="admin", admin_password="monitor-pass")) as test_client:
-        yield test_client
+def auth_client(tmp_path, monkeypatch):
+    from backend.app.passwords import hash_password
+
+    monkeypatch.setattr(platform_main, "build_attack_engine", FakeEngine)
+    settings = Settings(
+        database_path=tmp_path / "incidents.sqlite",
+        webhook_token="wh",
+        lab_token="lab",
+        enable_probe=False,
+        auth_username="admin",
+        auth_password_hash=hash_password(PASSWORD),
+    )
+    with TestClient(platform_main.create_app(settings)) as client:
+        yield client
 
 
-def rotas_protegidas(client):
-    return [
-        client.get("/api/attacks"),
-        client.get("/api/queue"),
-        client.post("/api/attacks/sobrecarga-http/start", json={"params": {}}),
-        client.post("/api/queue/e1/cancel"),
-        client.get("/api/events"),
-    ]
+def test_web_demo_nao_expoe_rotas_de_ataque(tmp_path):
+    with PublicClient(demo_main.create_demo("demo-secret", static_path=tmp_path / "sem-static")) as client:
+        assert not hasattr(client.app.state, "attack_engine")
+        assert client.get("/api/attacks").status_code == 404
+        assert client.get("/api/queue").status_code == 404
+        assert client.post("/api/attacks/sobrecarga-http/start", json={}).status_code == 404
 
 
-def test_sem_sessao_todas_as_rotas_devolvem_401(client):
-    for resposta in rotas_protegidas(client):
-        assert resposta.status_code == 401, resposta.request.url
+def test_sem_sessao_rotas_de_ataques_no_painel_devolvem_401(tmp_path, monkeypatch):
+    monkeypatch.setattr(platform_main, "build_attack_engine", FakeEngine)
+    settings = Settings(database_path=tmp_path / "incidents.sqlite", enable_probe=False)
+    with PublicClient(platform_main.create_app(settings)) as client:
+        assert client.get("/api/attacks").status_code == 401
+        assert client.get("/api/queue").status_code == 401
+        assert client.post("/api/attacks/sobrecarga-http/start", json={"params": {}}).status_code == 401
+        assert client.post("/api/queue/e1/cancel").status_code == 401
+        assert client.get("/api/events").status_code == 401
 
 
-def test_sessao_valida_ve_o_catalogo_completo(client):
-    resposta = client.get("/api/attacks", cookies=COOKIE)
+def test_sessao_valida_ve_o_catalogo_completo(auth_client):
+    resposta = auth_client.get("/api/attacks")
     assert resposta.status_code == 200
-    assert [ataque["id"] for ataque in resposta.json()["attacks"]] == [ataque["id"] for ataque in CATALOG]
+    assert [a["id"] for a in resposta.json()["attacks"]] == [a["id"] for a in CATALOG]
 
 
-def test_disparo_com_sessao_valida_invalido_e_desconhecido(client):
-    engine = client.app.state.attack_engine
-    resposta = client.post("/api/attacks/flood-dns/start", json={"params": {"duracao": 60}}, cookies=COOKIE)
+def test_disparo_com_sessao_valida_invalido_e_desconhecido(auth_client):
+    engine = auth_client.app.state.attack_engine
+    resposta = auth_client.post("/api/attacks/flood-dns/start", json={"params": {"duracao": 60}})
     assert resposta.status_code == 200 and resposta.json()["status"] == "agendado"
     assert engine.started == [("flood-dns", {"duracao": 60})]
-    fora_de_faixa = client.post("/api/attacks/flood-dns/start", json={"params": {"duracao": 9999}}, cookies=COOKIE)
+
+    fora_de_faixa = auth_client.post("/api/attacks/flood-dns/start", json={"params": {"duracao": 9999}})
     assert fora_de_faixa.status_code == 400 and "parametro_fora_da_faixa" in fora_de_faixa.text
-    desconhecido = client.post("/api/attacks/ataque-falso/start", json={}, cookies=COOKIE)
+
+    desconhecido = auth_client.post("/api/attacks/ataque-falso/start", json={})
     assert desconhecido.status_code == 404 and "ataque_desconhecido" in desconhecido.text
 
 
-def test_fila_e_cancelamento_com_sessao(client):
-    engine = client.app.state.attack_engine
-    fila = client.get("/api/queue", cookies=COOKIE)
+def test_fila_e_cancelamento_com_sessao(auth_client):
+    engine = auth_client.app.state.attack_engine
+    fila = auth_client.get("/api/queue")
     assert fila.status_code == 200
     assert fila.json() == {"current": None, "queue": [], "history": [{"entry_id": "e0", "status": "concluido"}]}
-    cancelado = client.post("/api/queue/e1/cancel", cookies=COOKIE)
+
+    cancelado = auth_client.post("/api/queue/e1/cancel")
     assert cancelado.status_code == 200 and cancelado.json()["status"] == "interrompendo"
     assert engine.cancelled == ["e1"]
-    inexistente = client.post("/api/queue/desconhecido/cancel", cookies=COOKIE)
+
+    inexistente = auth_client.post("/api/queue/desconhecido/cancel")
     assert inexistente.status_code == 404
 
 
-def test_stream_de_eventos_com_sessao(client):
-    with client.stream("GET", "/api/events", cookies=COOKIE) as resposta:
+def test_stream_de_eventos_com_sessao(auth_client):
+    with auth_client.stream("GET", "/api/events") as resposta:
         assert resposta.status_code == 200
         corpo = b"".join(resposta.iter_bytes())
     assert b'type": "status"' in corpo

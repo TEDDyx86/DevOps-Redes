@@ -19,6 +19,7 @@ import {
   Server,
   ShieldCheck,
   SlidersHorizontal,
+  Swords,
   Terminal,
   TriangleAlert,
 } from "lucide-react";
@@ -31,9 +32,9 @@ import {
 import {
   CollectionNote,
   IncidentsList,
+  ServiceDetails,
   ServiceTable,
   SignalChart,
-  StatusBadge,
   timeLabel,
 } from "./components";
 import LabView from "./Lab";
@@ -42,6 +43,8 @@ import DNSView from "./DNS";
 import SMTPView from "./SMTP";
 import SecurityView from "./Security";
 import ResourcesView from "./Resources";
+import IncidentsView from "./Incidents";
+import AttacksView from "./Attacks";
 import {
   combinedStatus,
   currentService,
@@ -71,6 +74,7 @@ const navigation: { id: Page; label: string; icon: typeof Activity }[] = [
   { id: "security", label: "Segurança", icon: ShieldCheck },
   { id: "incidents", label: "Incidentes", icon: Bell },
   { id: "lab", label: "Laboratório", icon: FlaskConical },
+  { id: "attacks", label: "Ataques", icon: Swords },
 ];
 const pageTitles: Record<Page, { title: string; subtitle: string }> = {
   resources: {
@@ -108,6 +112,10 @@ const pageTitles: Record<Page, { title: string; subtitle: string }> = {
   lab: {
     title: "Laboratório",
     subtitle: "Provoque uma falha. Entenda o sinal. Acompanhe a recuperação.",
+  },
+  attacks: {
+    title: "Ataques",
+    subtitle: "Simule incidentes controlados e acompanhe os alertas no Prometheus.",
   },
 };
 
@@ -531,19 +539,10 @@ export default function App({
               state={lab}
               onChanged={() => setRefresh((value) => value + 1)}
             />
+          ) : page === "attacks" ? (
+            <AttacksView onChanged={() => setRefresh((value) => value + 1)} />
           ) : page === "incidents" ? (
-            <section className="panel">
-              <div className="panel-heading">
-                <div>
-                  <h2>Histórico de incidentes</h2>
-                  <p>
-                    Eventos persistidos após confirmação das regras de alerta.
-                  </p>
-                </div>
-                <span className="muted small">Últimos 100 registros</span>
-              </div>
-              <IncidentsList incidents={incidents} />
-            </section>
+            <IncidentsView incidents={incidents} />
           ) : (
             <>
               <section
@@ -633,30 +632,10 @@ export default function App({
                 </div>
               </div>
               {page === "service" && (
-                <section className="service-details">
-                  <div>
-                    <span>Requisições por segundo</span>
-                    <strong>
-                      {formatMetric(service?.rps, 2)} <small>req/s</small>
-                    </strong>
-                  </div>
-                  <div>
-                    <span>Respostas 4xx e 5xx</span>
-                    <strong>
-                      {formatMetric(service?.error_percent)} <small>%</small>
-                    </strong>
-                  </div>
-                  <div>
-                    <span>Estado da sonda</span>
-                    <StatusBadge status={service?.status ?? "unknown"} />
-                  </div>
-                  <button
-                    className="button secondary"
-                    onClick={() => go("lab")}
-                  >
-                    Testar falha <FlaskConical size={16} />
-                  </button>
-                </section>
+                <ServiceDetails
+                  service={service}
+                  onTestFailure={() => go("lab")}
+                />
               )}
               <section className="panel services-panel">
                 <div className="panel-heading">

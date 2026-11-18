@@ -54,6 +54,40 @@ export interface WorkResult {
   timestamp: number;
 }
 
+export interface StoreProduct {
+  slug: string;
+  name: string;
+  category: string;
+  description: string;
+  specs: string;
+  price_cents: number;
+  stock: number;
+  image_key: string;
+}
+
+export interface StoreOrderItem {
+  slug: string;
+  name: string;
+  price_cents: number;
+  quantity: number;
+}
+
+export interface StoreOrder {
+  order_code: string;
+  customer_name: string;
+  customer_email: string;
+  total_cents: number;
+  items: StoreOrderItem[];
+  email_sent: boolean;
+  created_at: string | null;
+}
+
+export interface StoreStatus {
+  http: string;
+  postgres: "ok" | "down" | "memory" | string;
+  smtp: "ok" | "down" | "disabled" | string;
+}
+
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, init);
   if (!response.ok) {
@@ -116,6 +150,48 @@ export const api = {
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
+  },
+  async storeStatus(): Promise<StoreStatus> {
+    return requestJson<StoreStatus>("/api/store/status");
+  },
+  async products(category?: string, query?: string): Promise<StoreProduct[]> {
+    const params = new URLSearchParams();
+    if (category && category !== "Todas") params.set("category", category);
+    if (query?.trim()) params.set("q", query.trim());
+    const qs = params.toString();
+    const data = await requestJson<{ products: StoreProduct[] }>(
+      `/api/products${qs ? `?${qs}` : ""}`,
+    );
+    return data.products;
+  },
+  async product(slug: string): Promise<StoreProduct> {
+    return requestJson<StoreProduct>(`/api/products/${encodeURIComponent(slug)}`);
+  },
+  async orders(): Promise<StoreOrder[]> {
+    const data = await requestJson<{ orders: StoreOrder[] }>("/api/orders");
+    return data.orders;
+  },
+  async createOrder(payload: {
+    customer_name: string;
+    customer_email: string;
+    items: { slug: string; quantity: number }[];
+  }): Promise<StoreOrder> {
+    const response = await fetch("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      let detail = `HTTP ${response.status}`;
+      try {
+        const body = (await response.json()) as { detail?: string };
+        if (body.detail) detail = body.detail;
+      } catch {
+        // fallback to HTTP status
+      }
+      throw new Error(detail);
+    }
+    return (await response.json()) as StoreOrder;
   },
   attacks(): Promise<Attack[]> {
     return requestJson<{ attacks: Attack[] }>("/api/attacks").then((data) => data.attacks);

@@ -1,19 +1,18 @@
-﻿"""Motor do painel de ataques: fila com um ataque por vez, fases e eventos."""
+"""Motor do painel de ataques: fila com um ataque por vez, fases e eventos SSE."""
 import copy
 import json
 import queue
 import threading
-import time
 import uuid
 from datetime import datetime, timezone
 
-from demo.attacks import catalog
+from backend.app.attacks import catalog
 
 FINAL = ("concluido", "interrompido", "falhou")
 
 
 class Cancelled(Exception):
-    """Sinal interno de interrupÃ§Ã£o solicitada."""
+    """Sinal interno de interrupção solicitada."""
 
 
 def _now():
@@ -79,10 +78,18 @@ class Engine:
 
     def enqueue(self, attack_id, params=None):
         cleaned = catalog.clean_params(attack_id, params)
-        entry = {"entry_id": uuid.uuid4().hex, "attack": attack_id, "status": "agendado",
-                 "params": cleaned, "expected_alerts": catalog.expected_alerts(attack_id),
-                 "counters": {}, "verification": None, "error": None,
-                 "started_at": None, "ended_at": None}
+        entry = {
+            "entry_id": uuid.uuid4().hex,
+            "attack": attack_id,
+            "status": "agendado",
+            "params": cleaned,
+            "expected_alerts": catalog.expected_alerts(attack_id),
+            "counters": {},
+            "verification": None,
+            "error": None,
+            "started_at": None,
+            "ended_at": None,
+        }
         with self._lock:
             self._queue.append(entry)
         self._publish("status", entry_id=entry["entry_id"], attack=attack_id, status="agendado", message="Ataque na fila")
@@ -104,14 +111,16 @@ class Engine:
                     return None
         if context is not None:
             context.request_cancel()
-        self._publish("status", entry_id=entry_id, status="interrompendo", message="InterrupÃ§Ã£o solicitada")
+        self._publish("status", entry_id=entry_id, status="interrompendo", message="Interrupção solicitada")
         return {"entry_id": entry_id, "status": "interrompendo"}
 
     def snapshot(self):
         with self._lock:
-            return {"current": self._view(self._current) if self._current else None,
-                    "queue": [self._view(entry) for entry in self._queue],
-                    "history": [dict(entry) for entry in self._history]}
+            return {
+                "current": self._view(self._current) if self._current else None,
+                "queue": [self._view(entry) for entry in self._queue],
+                "history": [dict(entry) for entry in self._history],
+            }
 
     def recent_events(self, limit=200):
         with self._lock:
@@ -146,7 +155,6 @@ class Engine:
         self._wakeup.set()
         self._worker.join(timeout=5)
 
-    # ---- interno ------------------------------------------------------
     def _publish(self, event_type, **payload):
         with self._lock:
             self._seq += 1
@@ -183,8 +191,14 @@ class Engine:
 
     def _run(self, entry):
         attack_id = entry["attack"]
-        context = AttackContext(lambda event_type, **payload: self._publish(
-            event_type, entry_id=entry["entry_id"], attack=attack_id, **payload))
+        context = AttackContext(
+            lambda event_type, **payload: self._publish(
+                event_type,
+                entry_id=entry["entry_id"],
+                attack=attack_id,
+                **payload,
+            )
+        )
         with self._lock:
             self._contexts[entry["entry_id"]] = context
             entry["status"] = "executando"
@@ -204,9 +218,11 @@ class Engine:
         except Exception as error:
             entry["status"] = "falhou"
             entry["error"] = type(error).__name__
+            context.log(f"Falha na execução ({type(error).__name__})")
         finally:
             state = context.snapshot()
             entry["counters"] = state["counters"]
+            entry["expected_alerts"] = state["expected_alerts"]
             with self._lock:
                 entry["ended_at"] = _now()
                 self._history.append(entry)

@@ -1,24 +1,94 @@
-# AulaRedes
+# AulaRedes — Plataforma de Monitoramento DevOps
 
-Plataforma de monitoramento para o trabalho final de Redes de Computadores e Internet. Desenvolvimento individual, entrega prevista em **17/11/2026**.
+Plataforma completa de observabilidade, segurança e simulação controlada de falhas/ataques para serviços de rede (**HTTP**, **PostgreSQL**, **DNS** e **SMTP**), desenvolvida para a disciplina de **Redes de Computadores e Internet (IDP)**.
 
-## Estado da construção
+> Toda métrica exibida provém de sondas reais, exportadores nativos e cargas controladas — valores ausentes ou expirados aparecem como **Sem dados (`—`)**, nunca como zero saudável falsificado.
 
-**Etapa 9: recursos dos quatro serviços.** A página Recursos acompanha CPU em núcleos, memória em MiB e leitura/gravação de blocos em KiB/s, com histórico, alertas e e-mails. Um coletor local consulta o Docker; a API recebe somente um snapshot em montagem de leitura. Dados ausentes aparecem como desconhecidos. [Inicialização, unidades e demonstração](docs/runbook-recursos.md).
+---
 
-**Etapa 10: métricas finais.** O PostgreSQL ganhou consultas lentas (pg_stat_statements acima de 100 ms), conexões ativas/ociosas, latência de disco por pg_stat_io e crescimento projetado em GiB/dia. O serviço HTTP monitorado conta tentativas de acesso com token inválido, com alerta próprio. O coletor de recursos publica o espaço livre do volume do projeto, com alerta abaixo de 2 GiB. A configuração de alertas passou de 27 para 31 regras, verificadas com promtool, incluindo quatro cenários sintéticos novos em `backend/tests/fixtures/final-metrics-rules.test.yml`.
+## Sumário
 
-Syft/Grype analisam as imagens locais dos quatro serviços, com relatórios com validade explícita, filtros, alertas e e-mail. O painel também acompanha oito configurações por SHA-256, tráfego com referência fixa, login e eventos de autenticação. Achados reais exigem triagem; não há atualização automática de imagens.
+- [Arquitetura e Serviços](#arquitetura-e-serviços)
+- [Funcionalidades da Plataforma](#funcionalidades-da-plataforma)
+- [Como Executar a Aplicação](#como-executar-a-aplicação)
+- [Como Usar e Demonstrar na Prática](#como-usar-e-demonstrar-na-prática)
+- [Como Realizar os Testes e Verificações](#como-realizar-os-testes-e-verificações)
+- [Documentação Completa](#documentação-completa)
+- [Limites do Ambiente Acadêmico](#limites-do-ambiente-acadêmico)
 
-**Atualização de 30/10:** o PostgreSQL mantém a versão 17.11 e usa uma imagem derivada com gosu recompilado em Go 1.27.3. A análise passou de 3 críticos/32 altos para zero críticos/altos, com 50 pacotes catalogados e dados preservados. Cinco achados médios/baixos permanecem para triagem. Procedimento, aplicabilidade dos avisos e reversão no [runbook da atualização PostgreSQL](docs/runbook-postgres-remediation.md).
+---
 
-O histórico agora identifica ciclos antigos **Reconciliados** quando há resolução posterior confirmada do mesmo alerta, preservando os registros e deixando explícito que o término original não foi recebido. Os alertas atuais continuam ativos. [Critérios, backup e verificação](docs/runbook-incidentes.md).
+## Arquitetura e Serviços
 
-## Iniciar no Windows
+```mermaid
+flowchart LR
+    UI[Dashboard Workbyte · React :8000] --> API[API FastAPI :8000]
+    API -->|PromQL fixo| P[Prometheus :9090]
+    API -->|Sondas HTTP / SQL / DNS / SMTP| S[Serviços Monitorados]
+    P -->|Scrape 5 s| API
+    P -->|Scrape 5 s| S
+    P -->|31 regras de alerta| A[Alertmanager :9093]
+    A -->|Webhook autenticado| API
+    A -->|E-mails de alerta| M[Mailpit Alertas :8025]
+    W[Workers no Host · Recursos e Syft/Grype] -->|Snapshot somente leitura| API
+```
 
-Pré-requisitos: Docker Desktop com containers Linux e Python 3.13 ou mais recente (configuração e worker local de vulnerabilidades). A primeira construção precisa de internet para baixar imagens e dependências.
+### Interfaces e Portas Locais (`127.0.0.1`)
 
-Na pasta do projeto:
+| Componente | Endereço | Descrição |
+|---|---|---|
+| **Dashboard Workbyte** | http://localhost:8000 | Landing pública → login → painel consolidado e por serviço |
+| **Documentação da API** | http://localhost:8000/docs | Swagger UI da API FastAPI (protegido por sessão) |
+| **Web-Demo + Painel de Ataques** | http://localhost:8011 | Aplicação HTTP 8-bit (`WORKBYTE`) com login e aba de simulação de ataques |
+| **Endpoint HTTP Monitorado** | http://localhost:8011/work | Alvo principal das sondas de disponibilidade, RPS, latência e conexões |
+| **Mailpit — E-mails de Alerta** | http://localhost:8025 | Caixa local independente onde chegam alertas `Atenção`, `Crítico` e recuperações |
+| **Mailpit — Caixa SMTP Monitorada** | http://localhost:8026 | Receptor final das mensagens entregues pelo servidor SMTP do laboratório |
+| **Prometheus** | http://localhost:9090 | Armazenamento de séries temporais (7 dias) e avaliação das 31 regras |
+| **Alertmanager** | http://localhost:9093 | Deduplicação, agrupamento e despacho de notificações por e-mail e webhook |
+
+---
+
+## Funcionalidades da Plataforma
+
+### 1. Monitoramento dos 4 Serviços de Rede
+- **Web Server HTTP (`#service`):** disponibilidade (`GET /health`), requisições por segundo (RPS), latência da sonda e p95 (`/work`), taxa percentual de erros (`4xx`/`5xx`), **contagem discriminada por código de erro HTTP na janela** e **conexões ativas** (`demo_http_requests_inflight`).
+- **Banco de Dados PostgreSQL 17.11 (`#postgres`):** disponibilidade (`SELECT 1`), QPS via `pg_stat_statements`, commits/rollbacks por segundo, conexões abertas vs. `max_connections` com separação ativa/ociosa (`pg_stat_activity`), consultas lentas (`mean_exec_time > 100 ms`), latência de leitura/gravação de blocos (`pg_stat_io`), tamanho e crescimento projetado (`GiB/dia`).
+- **Servidor DNS CoreDNS (`#dns`):** disponibilidade em UDP e TCP para a zona local `aularedes.test`, tempo de resolução, consultas por segundo (QPS), p95 do servidor e separação explícita entre `NXDOMAIN` e erros do servidor (`SERVFAIL`/`REFUSED`/`FORMERR`/`NOTIMP`).
+- **Servidor SMTP (`#smtp`):** servidor `aiosmtpd` com fila SQLite persistente e entrega ao receptor `smtp-inbox`, medindo taxa de entrega, tamanho da fila (`Queue length`), latência p95 aceitação → entrega, volume por minuto/hora, rejeições (`550`) e tentativas falhas/timeouts.
+
+### 2. Sistema de Alertas em 3 Níveis e Reconciliação
+- **Nível 1 — Verde (OK / `Operacional`):** operação normal.
+- **Nível 2 — Amarelo (Atenção / `warning`):** degradação ou anomalia que exige observação, com envio de e-mail para o Mailpit (`:8025`).
+- **Nível 3 — Vermelho (Crítico / `critical`):** indisponibilidade ou falha grave (ou vulnerabilidade crítica), com envio imediato de e-mail (`group_wait: 0s`, `group_interval: 5s`).
+- **Histórico persistente (`#incidents`):** últimos 100 incidentes armazenados em SQLite independente do banco monitorado, com reconciliação automática (**Reconciliado**) caso o evento de resolução original tenha se perdido durante uma queda.
+
+### 3. Segurança, Recursos e Simulação de Ataques
+- **Vulnerabilidades conhecidas (`#security`):** worker isolado (`Syft` + `Grype`) analisa as imagens reais dos 4 serviços, gera relatórios com validade explícita, filtros por serviço/severidade e alertas para achados críticos/altos.
+- **Integridade de configurações (`#security`):** monitoramento SHA-256 contínuo de 8 arquivos reais em `infra/`, exigindo aprovação explícita com `LAB_TOKEN` e disparando alerta em qualquer modificação ou ausência.
+- **Anomalias de tráfego / DDoS (`#security`):** aprendizado de referência contínua (120 s) para os 4 protocolos, com limiar `max(3× referência, piso)` e alerta `TrafegoAnormal`.
+- **Autenticação e Brute-Force (`#security`):** proteção por sessão `HttpOnly/SameSite`, CSRF, bloqueio temporário por IP (5 falhas/60 s) e por conta (10 falhas/60 s), além de contador `demo_auth_attempts_total` para ataques ao serviço HTTP.
+- **Recursos de infraestrutura (`#resources`):** coletor local via Docker SDK mede CPU (núcleos equivalentes), memória (working set), leitura/gravação de blocos (`KiB/s`) dos 4 contêineres e espaço livre no volume do projeto.
+- **Laboratório (`#lab`) e Painel de Ataques (`http://localhost:8011`):** o painel em `#lab` permite simular lentidão/offline e carga controlada de tráfego; o app `web-demo` em `:8011` possui aba dedicada de **Simulação de ataques** com 8 cenários reais reversíveis (força bruta, sobrecarga HTTP, indisponibilidade, floods DNS/SMTP, adulteração de configuração e interrupção de serviço).
+
+---
+
+## Como Executar a Aplicação
+
+### Pré-requisitos
+- **Windows 10/11** com **Docker Desktop** (contêineres Linux em execução)
+- **Python 3.13+** instalado no host
+- **Node.js 20+ / npm** *(apenas para desenvolvimento local ou execução dos testes do frontend)*
+- Conexão com a internet na primeira execução para baixar imagens e dependências
+
+### 1. Subir a plataforma (forma rápida)
+
+Na raiz do projeto, execute no PowerShell:
+
+```powershell
+./scripts/start.ps1
+```
+
+### 2. Subir passo a passo (caso a política do PowerShell bloqueie `.ps1`)
 
 ```powershell
 python scripts/configure.py
@@ -27,158 +97,161 @@ python scripts/scan_vulnerabilities.py --background
 python scripts/collect_resources.py --background
 ```
 
-Ou execute `./scripts/start.ps1` no PowerShell. Se a política do computador impedir scripts, use os comandos acima, sem alterar a política.
+> **Credenciais do primeiro acesso:** abra o arquivo local `.env` gerado por `scripts/configure.py` e utilize `ADMIN_USERNAME` (padrão `admin`) e `ADMIN_PASSWORD` para entrar em http://localhost:8000 e http://localhost:8011. Para mutações em `#lab` e `#security`, utilize o valor de `LAB_TOKEN` do mesmo `.env`.
 
-- Dashboard Workbyte (landing pública → login → painel): **http://localhost:8000**
-- Caixa de e-mails de alerta: **http://localhost:8025**
-- Caixa de mensagens do SMTP monitorado: **http://localhost:8026**
-- Documentação da API: http://localhost:8000/docs
-- Prometheus: http://localhost:9090
-- Alertmanager: http://localhost:9093
-- Web-demo (landing/login/painel + aba de simulação de ataques): http://localhost:8011
-- Serviço HTTP monitorado: http://localhost:8011/work
-- Dashboard PostgreSQL: http://localhost:8000/#postgres
-- Dashboard DNS: http://localhost:8000/#dns
-- Dashboard SMTP: http://localhost:8000/#smtp
-- Recursos dos quatro serviços: http://localhost:8000/#resources
-- Eventos de autenticação: http://localhost:8000/#security
-
-O painel exige login. No primeiro acesso, use `ADMIN_USERNAME` e `ADMIN_PASSWORD` do arquivo local `.env`, gerados por `scripts/configure.py`. Ao atualizar uma instalação existente, execute novamente esse script antes de reconstruir a stack. Ele preserva os segredos anteriores. O botão de sair revoga a sessão; o [runbook de autenticação](docs/runbook-autenticacao.md) detalha limites e demonstração.
-
-O detector de tráfego aparece na aba Segurança. Na primeira execução, aguarde pelo menos dois minutos de coleta contínua em operação habitual para formar a referência de cada serviço. Em Laboratório, o teste de tráfego gera carga local por até 90 s com o LAB_TOKEN, sem enviar tráfego a destinos externos. Veja os limites no [runbook de tráfego](docs/runbook-trafego.md).
-
-Na mesma aba, **Integridade das configurações** acompanha oito arquivos reais. Confira os arquivos do repositório e aprove os primeiros hashes com sessão e LAB_TOKEN; o monitor não confia automaticamente no primeiro conteúdo observado. Alterações e arquivos ausentes geram alertas. O [runbook de integridade](docs/runbook-integridade.md) explica aprovação, estados, limites e a demonstração restaurável com `python scripts/verify_integrity.py`.
-
-**Vulnerabilidades conhecidas** mostra a análise das imagens em uso, feita por um processo local separado da API. O inventário das imagens é atualizado a cada 30 s e os scans são repetidos a cada 6 h. A primeira análise precisa baixar ferramentas/base e pode levar alguns minutos. Relatório ausente ou vencido aparece como **Sem análise atual**. Veja inicialização, limites e triagem no [runbook de vulnerabilidades](docs/runbook-vulnerabilidades.md).
-
-O SMTP de laboratório usa Python/aiosmtpd e uma fila SQLite em volume separado. Aceita mensagens somente para `aluno@aularedes.test`, mede aceitação e entrega separadamente e tenta novamente quando o receptor cai. O canal de alertas usa outro Mailpit, portanto continua funcionando durante uma falha no SMTP monitorado. Detalhes e limites em [runbook SMTP](docs/runbook-smtp.md).
-
-Ao atualizar uma stack já em execução, reinicie o Prometheus após reconstruir os serviços para carregar mudanças nos arquivos montados: `docker compose restart prometheus`.
-
-CoreDNS responde por uma zona local em UDP/TCP, sem alterar o DNS do computador nem publicar portas no host. A sonda verifica `app.aularedes.test. A = 192.0.2.10`; o painel separa nomes inexistentes (NXDOMAIN) de erros do servidor.
-
-O banco SQL usa PostgreSQL 17.11 com volume persistente e usuários separados para administração, monitoramento e carga. Sua porta não é publicada no host. Ao atualizar uma instalação da etapa HTTP, execute novamente `python scripts/configure.py` antes do Compose para gerar os três novos segredos SQL.
-
-Aguarde cerca de 15 segundos para as primeiras taxas. O coletor faz uma sonda HTTP e uma requisição real de trabalho a cada ciclo (mínimo de 5 segundos, somado ao tempo das respostas). Toda métrica exibida vem desse tráfego ou de requisições feitas pelo usuário.
-
-## Testar alertas
-
-1. Abra **Laboratório** no dashboard.
-2. Abra o arquivo local `.env` e copie apenas o valor de `LAB_TOKEN` para o campo do laboratório. Não publique esse arquivo.
-3. Aplique **Resposta lenta**. Após 30 segundos de degradação persistente, mais os intervalos de coleta/avaliação, confira o incidente e o e-mail no Mailpit.
-4. Aplique **Indisponibilidade**. O serviço responde HTTP 503; a coleta de métricas continua. O alerta crítico exige 15 segundos de falha persistente.
-5. Volte para **Operação normal** e confira a resolução e a mensagem de recuperação.
-
-Os tempos das regras começam quando o Prometheus observa a condição, portanto não são cronômetros exatos a partir do clique. A mudança de estado no dashboard pode preceder a confirmação do alerta.
-
-## Encerrar e preservar o histórico
-
-Para testar a parada e recuperação do banco, use `docker compose stop postgres` e depois `docker compose start postgres`. O dashboard e os incidentes continuam disponíveis durante a falha. O roteiro completo está no runbook PostgreSQL.
+### 3. Recarregar regras após editar arquivos em `infra/`
 
 ```powershell
-docker compose down
+docker compose restart prometheus
 ```
 
-Os volumes preservam métricas (retenção de 7 dias), incidentes e e-mails. O histórico de incidentes mostra os últimos 100 registros. O modo de falha do serviço de demonstração volta ao normal ao reiniciar seu processo. Não use `down -v` se quiser preservar os dados.
+### 4. Encerrar preservando métricas, incidentes e e-mails
 
-Antes do `docker compose down`, solicite `python scripts/scan_vulnerabilities.py --stop` e `python scripts/collect_resources.py --stop`. Os dois coletores locais não são serviços do Windows; execute o script de inicialização novamente após reiniciar o computador. O coletor de recursos prepara um ambiente Python próprio em `.runtime/resource-worker-venv`, com dependências fixadas por hash; a primeira instalação requer internet.
+```powershell
+python scripts/scan_vulnerabilities.py --stop
+python scripts/collect_resources.py --stop
+./scripts/stop.ps1
+```
 
-## Desenvolvimento
+> Não utilize `docker compose down -v` caso deseje manter os volumes persistentes (`incidents`, `metrics`, `alerts`, `mail`, `postgres-data`, `smtp-data`, `smtp-mail`).
 
-Containers são a forma mais simples de executar tudo. Para editar frontend/backend fora dos containers, mantenha o ambiente principal parado e prepare:
+Mais detalhes em [Guia de Instalação](docs/instalacao.md).
+
+---
+
+## Como Usar e Demonstrar na Prática
+
+1. **Aprovar referências de integridade (primeiro boot):**
+   - Acesse http://localhost:8000/#security → **Integridade das configurações** → **Revisar e aprovar uma referência** e aprove os 8 hashes com seu `LAB_TOKEN`.
+2. **Aguardar a calibração de tráfego:**
+   - Mantenha a stack em operação normal por ~2 minutos para formar o baseline dos 4 protocolos.
+3. **Demonstrar falhas e alertas no Laboratório (`:8000/#lab`):**
+   - Cole o `LAB_TOKEN` e ative **Resposta lenta** (+850 ms → alerta `HTTPLento` após 30 s) ou **Indisponibilidade** (HTTP 503 → alerta `HTTPIndisponivel` após 15 s).
+   - Acompanhe a mudança de estado no dashboard, o incidente registrado em `#incidents` e o e-mail em http://localhost:8025.
+   - Volte para **Operação normal** e observe a resolução automática e o e-mail de recuperação.
+4. **Demonstrar ataques reais pelo Web-Demo (`:8011`):**
+   - Acesse http://localhost:8011, faça login com as mesmas credenciais do `.env`, abra a aba de **Simulação de ataques** e dispare qualquer um dos 8 ataques do catálogo (todos reversíveis automaticamente ao final). Veja [runbook-painel-ataques.md](docs/runbook-painel-ataques.md).
+
+---
+
+## Como Realizar os Testes e Verificações
+
+### 1. Preparar ambiente local de testes (fora do Docker)
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.lock.txt
+
 cd frontend
 npm ci
 ```
 
-O frontend usa Vite (`npm run dev`) e encaminha `/api` para `127.0.0.1:8000`. A API pode ser iniciada por `.venv/Scripts/python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --no-proxy-headers` na raiz. Ela requer Prometheus, o serviço de demonstração e as variáveis descritas em `backend/app/config.py`; o arquivo `.env` é carregado pelo Compose, não automaticamente pelo Python. Essa opção não inicia o laboratório completo.
-
-## Verificações
+### 2. Testes unitários e de integração (sem precisar da stack no ar)
 
 ```powershell
+# Suíte backend (FastAPI, sondas, segurança, reconciliação, engine de ataques)
 .\.venv\Scripts\python.exe -m pytest backend/tests -q
+
+# Suíte e build do frontend principal
 cd frontend
+npm test
+npm run build
+
+# Suíte e build do frontend web-demo
+cd ..\demo-frontend
 npm test
 npm run build
 ```
 
+### 3. Validação das configurações e regras Prometheus / Alertmanager
+
 ```powershell
 docker compose run --rm --no-deps --entrypoint /bin/promtool prometheus check config /etc/prometheus/prometheus.yml
 docker compose run --rm --no-deps --entrypoint /bin/amtool alertmanager check-config /etc/alertmanager/alertmanager.yml
+
+# Testes sintéticos isolados das regras de alerta
+docker compose run --rm --no-deps --entrypoint /bin/promtool prometheus test rules /etc/prometheus/../backend/tests/fixtures/vulnerability-rules.test.yml
 ```
 
-## Documentação
+*(Ou monte `backend/tests/fixtures` ao executar `promtool test rules` sobre `vulnerability-rules.test.yml`, `resource-rules.test.yml` e `final-metrics-rules.test.yml`).*
 
-Para repetir a demonstração automatizada com a stack em execução:
+### 4. Testes E2E de navegação no navegador (Playwright — com a stack rodando)
+
+Na primeira vez, instale o navegador Chromium do Playwright:
 
 ```powershell
+cd frontend
+npm install
+npx playwright install chromium
+```
+
+Com a stack em execução (`http://127.0.0.1:8000`), execute:
+
+```powershell
+cd frontend
+npm run test:e2e
+```
+
+O teste ([navegacao.spec.ts](frontend/e2e/navegacao.spec.ts)) lê `ADMIN_USERNAME`/`ADMIN_PASSWORD` do `.env`, realiza o login pela interface, percorre todas as **9 páginas** do menu lateral validando métricas e marcadores reais, verifica ausência de erros de console e testa o viewport mobile (`390×844`) sem transbordamento horizontal.
+
+### 5. Scripts de verificação integrada ponta a ponta (com a stack rodando)
+
+Execute os roteiros abaixo **sequencialmente** (um por vez, sem reconstruir serviços durante a execução). Todos restauram o estado normal ao final:
+
+```powershell
+# Fluxo HTTP: lentidão, indisponibilidade, métricas, incidente e e-mail
 .\.venv\Scripts\python.exe scripts/verify_lab.py
-```
 
-O roteiro muda o modo do serviço de demonstração, verifica incidentes e e-mails locais e restaura o modo normal. Leva alguns minutos por respeitar as janelas reais dos alertas.
-
-Para verificar especificamente o PostgreSQL, incluindo parada real e preservação do volume:
-
-```powershell
+# PostgreSQL: estatísticas, rollbacks, parada real do contêiner e preservação do volume
 .\.venv\Scripts\python.exe scripts/verify_postgres.py
-```
 
-O banco é restaurado ao final do teste, inclusive se uma verificação falhar.
-
-Para verificar o DNS, incluindo UDP/TCP, NXDOMAIN/SERVFAIL e parada/recuperação:
-
-```powershell
+# DNS: resolução UDP/TCP, NXDOMAIN vs SERVFAIL, parada e recuperação
 .\.venv\Scripts\python.exe scripts/verify_dns.py
-```
 
-O DNS é restaurado ao final do teste. A documentação traz também os comandos de demonstração manual.
-
-Para verificar SMTP, fila persistente, entrega e alertas em canal independente:
-
-```powershell
+# SMTP: entrega correlacionada, fila crescente com receptor parado e recuperação
 .\.venv\Scripts\python.exe scripts/verify_smtp.py
-```
 
-O roteiro para e recupera o receptor e o servidor SMTP, restaurando ambos ao final.
-
-Para verificar autenticação, bloqueio temporário, incidente e recuperação:
-
-```powershell
+# Autenticação: sessão persistente, bloqueio após 5 falhas, incidente e logout
 .\.venv\Scripts\python.exe scripts/verify_auth.py
-```
 
-O roteiro reinicia a API, confirma a sessão persistente e provoca cinco falhas locais. Aguarda a janela de bloqueio expirar, verifica e-mails e conclui com os quatro serviços operacionais.
-
-Para demonstrar detecção de volume nos quatro protocolos:
-
-```powershell
+# Tráfego: detecção de volume anômalo nos 4 protocolos e recuperação
 .\.venv\Scripts\python.exe scripts/verify_traffic.py
+
+# Integridade: aprovação SHA-256, detecção de alteração e restauração dos 8 arquivos
+.\.venv\Scripts\python.exe scripts/verify_integrity.py
+
+# Recursos: CPU real, orçamento, parada do coletor (--exercise-outage) e recuperação
+.\.venv\Scripts\python.exe scripts/verify_resources.py
+
+# Vulnerabilidades: inventário Syft/Grype, filtros, métricas e queda do worker (--exercise-outage)
+.\.venv\Scripts\python.exe scripts/verify_vulnerabilities.py
 ```
 
-Execute os roteiros de demonstração sequencialmente, sem reconstruir ou interromper serviços enquanto um teste estiver em andamento.
+---
 
-Para demonstrar CPU real, incidente/e-mail e recuperação, execute `.\.venv\Scripts\python.exe scripts/verify_resources.py`. O modo `--exercise-outage` também interrompe e retoma o coletor local, verifica estados desconhecidos e os quatro alertas de coleta. A carga CPU tem limite próprio de 75 s e é cancelada ao final; não apaga volumes.
+## Documentação Completa
 
-Para verificar vulnerabilidades reais, relatórios e notificações, use `.\.venv\Scripts\python.exe scripts/verify_vulnerabilities.py`. O modo `--exercise-outage` demonstra parada restaurável do coletor e recuperação, sem injetar achados nem instalar software vulnerável.
+| Documento | Conteúdo |
+|---|---|
+| [Guia de Instalação e Operação](docs/instalacao.md) | Pré-requisitos, configuração de segredos, portas, subida e encerramento seguro |
+| [Arquitetura e Métricas](docs/arquitetura.md) | Fluxos, diagramas Mermaid, armazenamento e semântica de cada indicador |
+| [Playbook de Incidentes](docs/playbook-incidentes.md) | Fluxo de resposta em 6 etapas, níveis Verde/Amarelo/Vermelho e catálogo dos 31 alertas |
+| [Runbook HTTP](docs/runbook-http.md) | Operação diária HTTP e troubleshooting |
+| [Runbook PostgreSQL](docs/runbook-postgres.md) | Métricas SQL, demonstração de queda e limites |
+| [Atualização Preventiva PostgreSQL](docs/runbook-postgres-remediation.md) | Remediação de imagem, backup `pg_dump` e reversão |
+| [Runbook DNS](docs/runbook-dns.md) | Zona `aularedes.test`, UDP/TCP e demonstração `SERVFAIL` |
+| [Runbook SMTP](docs/runbook-smtp.md) | Fila SQLite, entregas, falhas e caixa separada |
+| [Runbook de Autenticação](docs/runbook-autenticacao.md) | Sessões, CSRF, bloqueio temporário e demonstração |
+| [Runbook de Tráfego](docs/runbook-trafego.md) | Baseline, limiares e cargas controladas |
+| [Runbook de Integridade](docs/runbook-integridade.md) | Hash SHA-256 dos 8 arquivos e fluxo de aprovação |
+| [Runbook de Vulnerabilidades](docs/runbook-vulnerabilidades.md) | Syft/Grype isolados, validade e triagem |
+| [Runbook de Recursos](docs/runbook-recursos.md) | CPU, memória, I/O de blocos e espaço livre |
+| [Runbook de Incidentes e Reconciliação](docs/runbook-incidentes.md) | Reconciliação de histórico no SQLite e backup |
+| [Runbook do Painel de Ataques](docs/runbook-painel-ataques.md) | Catálogo dos 8 ataques no `web-demo` (`:8011`) |
+| [Validação e Evidências](docs/validacao.md) | Histórico de testes, revisões e capturas em `docs/evidencias/` |
 
-- [Arquitetura e métricas](docs/arquitetura.md)
-- [Runbook HTTP e playbook de incidentes](docs/runbook-http.md)
-- [Incidentes e reconciliação do histórico](docs/runbook-incidentes.md)
-- [Runbook PostgreSQL](docs/runbook-postgres.md)
-- [Atualização preventiva PostgreSQL, backup e reversão](docs/runbook-postgres-remediation.md)
-- [Runbook DNS](docs/runbook-dns.md)
-- [Runbook SMTP](docs/runbook-smtp.md)
-- [Runbook de autenticação](docs/runbook-autenticacao.md)
-- [Runbook de tráfego e referências](docs/runbook-trafego.md)
-- [Runbook de integridade das configurações](docs/runbook-integridade.md)
-- [Runbook de vulnerabilidades por serviço](docs/runbook-vulnerabilidades.md)
-- [Runbook de CPU, memória e I/O](docs/runbook-recursos.md)
-- [Roadmap dos 20 dias](docs/roadmap.md)
-- [Validação e limites](docs/validacao.md)
+---
 
-## Limites de uso desta etapa
+## Limites do Ambiente Acadêmico
 
-Ambiente acadêmico local. As portas do host são vinculadas a `127.0.0.1`. Não exponha a plataforma à internet: o login protege o dashboard, mas as ferramentas auxiliares continuam sendo interfaces locais de laboratório. Operações do laboratório exigem token e rejeitam origem diferente; o webhook tem segredo próprio. Os dados do laboratório são de teste. A entrega SMTP é confirmada apenas no receptor local, sem comprovar entrega em provedores externos. Há duas caixas Mailpit separadas: alertas em 8025 e mensagens do serviço monitorado em 8026.
+Ambiente local executado em `127.0.0.1`. Não exponha a plataforma à internet: o login protege o dashboard e o painel de demonstração, mas Prometheus, Alertmanager e Mailpit são ferramentas locais de laboratório sem autenticação externa. A entrega SMTP confirma recebimento apenas no receptor local (`smtp-inbox`), sem envio para domínios externos.

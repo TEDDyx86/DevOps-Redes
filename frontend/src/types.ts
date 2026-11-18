@@ -10,7 +10,8 @@ export type Page =
   | "resources"
   | "security"
   | "incidents"
-  | "lab";
+  | "lab"
+  | "attacks";
 
 export interface DNSOverview {
   window: Window;
@@ -40,6 +41,7 @@ export interface ServiceSummary {
   checked_at: number | null;
   latency_ms: number | null;
   availability_percent: number | null;
+  connections?: number | null;
 }
 
 export interface ChartSample {
@@ -111,6 +113,8 @@ export interface Overview {
     rps: number | null;
     error_percent: number | null;
     availability_percent: number | null;
+    connections: number | null;
+    error_codes?: Record<string, number> | null;
   };
   series: {
     timestamp: number;

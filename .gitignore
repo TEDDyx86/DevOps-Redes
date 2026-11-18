@@ -12,3 +12,8 @@ data/
 tmp/
 test-results/
 playwright-report/
+.agents/
+.superpowers/
+skills-lock.json
+*.png
+gerarrelatório.py

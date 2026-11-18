@@ -1,7 +1,7 @@
 ﻿import threading
 import time
 
-from demo.attacks.engine import Cancelled, Engine
+from backend.app.attacks.engine import Cancelled, Engine
 
 
 def wait_for(predicate, timeout=5.0):

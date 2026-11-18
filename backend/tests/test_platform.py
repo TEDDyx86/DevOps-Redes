@@ -156,3 +156,66 @@ def test_failed_only_traffic_still_has_metrics(tmp_path):
         data = client.get("/api/overview").json()
         assert data["service"]["status"] == "critical"
         assert data["service"]["rps"] == 1
+
+
+def test_overview_exposes_active_connections_and_error_codes_when_fresh(tmp_path):
+    now = time.time()
+
+    def metrics(request):
+        query = request.url.params["query"]
+        if request.url.path.endswith("query_range"):
+            data = {"result": []}
+        elif "demo_http_requests_inflight" in query:
+            data = {"result": [{"value": [now, "7"]}]}
+        elif "sum by(status)" in query:
+            data = {"result": [
+                {"metric": {"status": "503"}, "value": [now, "5.2"]},
+                {"metric": {"status": "404"}, "value": [now, "2"]},
+            ]}
+        else:
+            value = str(now) if "timestamp(" in query or query.startswith("probe_checked_at_seconds") else "1"
+            data = {"result": [{"value": [now, value]}]}
+        return httpx.Response(200, json={"status": "success", "data": data})
+
+    with TestClient(create_app(settings(tmp_path), transport=httpx.MockTransport(metrics))) as client:
+        data = client.get("/api/overview").json()
+        assert data["service"]["connections"] == 7
+        assert data["service"]["error_codes"] == {"404": 2, "503": 5}
+
+
+def test_overview_hides_connections_and_error_codes_when_demo_stale_or_empty(tmp_path):
+    now = time.time()
+
+    def stale_demo(request):
+        query = request.url.params["query"]
+        if request.url.path.endswith("query_range"):
+            data = {"result": []}
+        elif "timestamp(" in query:
+            data = {"result": [{"value": [now, str(now - 60)]}]}
+        elif "demo_http_requests_inflight" in query:
+            data = {"result": [{"value": [now, "4"]}]}
+        elif "sum by(status)" in query:
+            data = {"result": [{"metric": {"status": "503"}, "value": [now, "3"]}]}
+        else:
+            value = str(now) if query.startswith("probe_checked_at_seconds") else "1"
+            data = {"result": [{"value": [now, value]}]}
+        return httpx.Response(200, json={"status": "success", "data": data})
+
+    with TestClient(create_app(settings(tmp_path), transport=httpx.MockTransport(stale_demo))) as client:
+        data = client.get("/api/overview").json()
+        assert data["service"]["connections"] is None
+        assert data["service"]["error_codes"] is None
+
+    def empty_inflight(request):
+        query = request.url.params["query"]
+        if request.url.path.endswith("query_range") or "demo_http_requests_inflight" in query or "sum by(status)" in query:
+            data = {"result": []}
+        else:
+            value = str(now) if "timestamp(" in query or query.startswith("probe_checked_at_seconds") else "1"
+            data = {"result": [{"value": [now, value]}]}
+        return httpx.Response(200, json={"status": "success", "data": data})
+
+    with TestClient(create_app(settings(tmp_path), transport=httpx.MockTransport(empty_inflight))) as client:
+        data = client.get("/api/overview").json()
+        assert data["service"]["connections"] is None
+        assert data["service"]["error_codes"] == {}

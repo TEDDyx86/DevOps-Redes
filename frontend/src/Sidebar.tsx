@@ -100,7 +100,7 @@ export default function Sidebar({
       {!collapsed && (
         <div className="sidebar-bottom">
           <div className="version-pill">
-            ETAPA 06 <span>TRÁFEGO E ACESSO</span>
+            WORKBYTE <span>v0.8</span>
           </div>
           <p>
             Da requisição ao alerta.
