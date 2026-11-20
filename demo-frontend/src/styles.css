@@ -95,11 +95,289 @@ body {
   image-rendering: crisp-edges;
 }
 
-.pixel-grid-bg {
+/* Arcade 8-bit 3D animated background (generated artwork + 3D parallax + motion layers) */
+.arcade-3d-stage {
+  --mx: 0;
+  --my: 0;
+  background: #05060f;
+  perspective: 1100px;
+}
+
+.arcade-3d-backdrop-tilt {
+  position: absolute;
+  inset: -6%;
+  transform-style: preserve-3d;
+  transform:
+    rotateY(calc(var(--mx) * -3.5deg))
+    rotateX(calc(var(--my) * 2.5deg))
+    translate3d(calc(var(--mx) * -18px), calc(var(--my) * -12px), 0);
+  will-change: transform;
+}
+
+.arcade-3d-artwork {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center 54%;
+  background-repeat: no-repeat;
+  filter: saturate(1.12) contrast(1.04) brightness(0.86);
+  animation: arcade-camera-drift 24s ease-in-out infinite;
+  will-change: transform;
+}
+
+.arcade-3d-sun-aura {
+  position: absolute;
+  left: 50%;
+  top: 52%;
+  width: min(560px, 78vw);
+  height: min(360px, 48vh);
+  transform: translate(calc(-50% + var(--mx) * -10px), calc(-50% + var(--my) * -8px));
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 180, 0, 0.22) 0%,
+    rgba(255, 47, 214, 0.22) 38%,
+    rgba(0, 229, 255, 0.08) 65%,
+    transparent 80%
+  );
+  mix-blend-mode: screen;
+  animation: arcade-sun-pulse 5.5s ease-in-out infinite;
+}
+
+.arcade-3d-stars {
+  position: absolute;
+  inset: -2% -2% 42% -2%;
+  image-rendering: pixelated;
+  transform: translate3d(calc(var(--mx) * -26px), calc(var(--my) * -14px), 0);
+}
+
+.arcade-3d-stars-far {
   background-image:
-    linear-gradient(to right, rgba(0, 229, 255, 0.05) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0, 229, 255, 0.05) 1px, transparent 1px);
-  background-size: 24px 24px;
+    radial-gradient(2px 2px at 12% 18%, rgba(255, 255, 255, 0.9) 50%, transparent 100%),
+    radial-gradient(2px 2px at 28% 34%, rgba(0, 229, 255, 0.95) 50%, transparent 100%),
+    radial-gradient(2px 2px at 44% 14%, rgba(255, 255, 255, 0.8) 50%, transparent 100%),
+    radial-gradient(2px 2px at 63% 26%, rgba(255, 47, 214, 0.9) 50%, transparent 100%),
+    radial-gradient(2px 2px at 78% 12%, rgba(255, 255, 255, 0.95) 50%, transparent 100%),
+    radial-gradient(2px 2px at 91% 31%, rgba(0, 229, 255, 0.85) 50%, transparent 100%);
+  background-size: 320px 220px;
+  animation: arcade-twinkle 3.2s steps(2) infinite;
+}
+
+.arcade-3d-stars-near {
+  background-image:
+    radial-gradient(3px 3px at 16% 24%, rgba(0, 229, 255, 0.95) 50%, transparent 100%),
+    radial-gradient(3px 3px at 52% 32%, rgba(255, 180, 0, 0.9) 50%, transparent 100%),
+    radial-gradient(3px 3px at 76% 18%, rgba(255, 47, 214, 0.95) 50%, transparent 100%);
+  background-size: 460px 260px;
+  animation: arcade-twinkle 2.2s steps(2) infinite reverse;
+}
+
+.arcade-3d-streaks {
+  position: absolute;
+  inset: 0 0 44% 0;
+  overflow: hidden;
+}
+
+.arcade-3d-streaks .streak {
+  position: absolute;
+  height: 2px;
+  border-radius: 0;
+  opacity: 0;
+  animation: arcade-streak-fly 9s linear infinite;
+}
+
+.arcade-3d-streaks .streak-1 {
+  top: 26%;
+  width: 96px;
+  background: linear-gradient(90deg, transparent, #00e5ff 70%, #ffffff);
+  box-shadow: 0 0 10px #00e5ff;
+  animation-delay: 0s;
+  animation-duration: 8.5s;
+}
+
+.arcade-3d-streaks .streak-2 {
+  top: 39%;
+  width: 72px;
+  background: linear-gradient(90deg, transparent, #ff2fd6 70%, #ffffff);
+  box-shadow: 0 0 10px #ff2fd6;
+  animation-delay: -3.8s;
+  animation-duration: 11s;
+}
+
+.arcade-3d-streaks .streak-3 {
+  top: 19%;
+  width: 56px;
+  background: linear-gradient(90deg, transparent, #ffb400 70%, #ffffff);
+  box-shadow: 0 0 8px #ffb400;
+  animation-delay: -6.4s;
+  animation-duration: 7.2s;
+}
+
+.arcade-3d-floor-wrap {
+  position: absolute;
+  left: -30%;
+  right: -30%;
+  top: 63%;
+  bottom: -10%;
+  perspective: 380px;
+  perspective-origin: 50% 0%;
+  overflow: hidden;
+  mix-blend-mode: screen;
+  opacity: 0.36;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 100%);
+}
+
+.arcade-3d-floor {
+  position: absolute;
+  inset: -40% 0 0 0;
+  transform-origin: 50% 0%;
+  transform: rotateX(74deg);
+  background-image:
+    linear-gradient(to right, rgba(0, 229, 255, 0.55) 2px, transparent 2px),
+    linear-gradient(to bottom, rgba(255, 47, 214, 0.65) 2px, transparent 2px);
+  background-size: 64px 64px;
+  animation: arcade-grid-scroll 2.1s linear infinite;
+}
+
+.arcade-3d-voxels {
+  position: absolute;
+  inset: 0;
+  perspective: 720px;
+  transform: translate3d(calc(var(--mx) * 28px), calc(var(--my) * 18px), 0);
+}
+
+.arcade-3d-voxels .voxel {
+  position: absolute;
+  bottom: -24px;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #00e5ff;
+  background: rgba(0, 229, 255, 0.18);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.65), 0 0 14px rgba(0, 229, 255, 0.55);
+  animation: arcade-voxel-float 11s linear infinite;
+}
+
+.arcade-3d-voxels .voxel-1 { left: 6%; animation-delay: 0s; animation-duration: 12s; }
+.arcade-3d-voxels .voxel-2 {
+  left: 17%;
+  width: 18px;
+  height: 18px;
+  border-color: #ff2fd6;
+  background: rgba(255, 47, 214, 0.2);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.65), 0 0 16px rgba(255, 47, 214, 0.6);
+  animation-delay: -3s;
+  animation-duration: 14s;
+}
+.arcade-3d-voxels .voxel-3 { left: 29%; animation-delay: -7s; animation-duration: 10s; }
+.arcade-3d-voxels .voxel-4 {
+  left: 46%;
+  width: 12px;
+  height: 12px;
+  border-color: #ffb400;
+  background: rgba(255, 180, 0, 0.24);
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.65), 0 0 14px rgba(255, 180, 0, 0.55);
+  animation-delay: -2s;
+  animation-duration: 13s;
+}
+.arcade-3d-voxels .voxel-5 { left: 64%; animation-delay: -5s; animation-duration: 11s; }
+.arcade-3d-voxels .voxel-6 {
+  left: 77%;
+  width: 20px;
+  height: 20px;
+  border-color: #ff2fd6;
+  background: rgba(255, 47, 214, 0.18);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.65), 0 0 16px rgba(255, 47, 214, 0.55);
+  animation-delay: -8s;
+  animation-duration: 15s;
+}
+.arcade-3d-voxels .voxel-7 { left: 88%; animation-delay: -1.5s; animation-duration: 9.5s; }
+.arcade-3d-voxels .voxel-8 {
+  left: 94%;
+  width: 12px;
+  height: 12px;
+  border-color: #ffb400;
+  background: rgba(255, 180, 0, 0.24);
+  animation-delay: -6s;
+  animation-duration: 12.5s;
+}
+
+.arcade-3d-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(5, 6, 15, 0.18) 0%, rgba(5, 6, 15, 0.66) 86%),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.16) 0px,
+      rgba(0, 0, 0, 0.16) 1px,
+      transparent 1px,
+      transparent 4px
+    );
+}
+
+@keyframes arcade-camera-drift {
+  0%, 100% {
+    transform: scale(1.06) translate3d(0%, 0%, 0);
+  }
+  33% {
+    transform: scale(1.12) translate3d(-1.4%, -1%, 0);
+  }
+  66% {
+    transform: scale(1.1) translate3d(1.4%, 0.6%, 0);
+  }
+}
+
+@keyframes arcade-grid-scroll {
+  from {
+    background-position: 0 0, 0 0;
+  }
+  to {
+    background-position: 0 64px, 0 64px;
+  }
+}
+
+@keyframes arcade-twinkle {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+@keyframes arcade-sun-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.95; }
+}
+
+@keyframes arcade-streak-fly {
+  0% {
+    transform: translateX(-140px);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.9;
+  }
+  85% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateX(calc(100vw + 180px));
+    opacity: 0;
+  }
+}
+
+@keyframes arcade-voxel-float {
+  0% {
+    transform: translate3d(0, 0, -80px) rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.8;
+  }
+  85% {
+    opacity: 0.65;
+  }
+  100% {
+    transform: translate3d(0, -108vh, 140px) rotateX(220deg) rotateY(320deg) rotateZ(180deg);
+    opacity: 0;
+  }
 }
 
 .arcade-box {

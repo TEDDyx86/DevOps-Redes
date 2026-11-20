@@ -41,8 +41,9 @@ export function PostgresRunbook() {
         </div>
       </div>
       <p className="collection-note">
-        A parada é real e controlada pelo terminal. A API não recebe acesso ao
-        mecanismo Docker.
+        A parada pode ser executada pelo terminal acima ou simulada de forma
+        reversível na aba Ataques (Interrupção de serviço), que reinicia o
+        contêiner automaticamente.
       </p>
     </section>
   );

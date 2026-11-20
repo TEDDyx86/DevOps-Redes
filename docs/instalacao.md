@@ -45,7 +45,7 @@ python scripts/scan_vulnerabilities.py --background
 python scripts/collect_resources.py --background
 ```
 
-> Os dois coletores locais (`scan_vulnerabilities.py` e `collect_resources.py`) rodam em segundo plano no host para manter a API sem acesso ao socket Docker e sem privilégios elevados. O coletor de recursos prepara automaticamente um ambiente Python próprio em `.runtime/resource-worker-venv`.
+> Os dois coletores locais (`scan_vulnerabilities.py` e `collect_resources.py`) rodam em segundo plano no host para manter a coleta de recursos e vulnerabilidades isolada em workers locais. O container `api` monta `/var/run/docker.sock` e `./infra:rw` exclusivamente para viabilizar os ataques controlados e reversíveis (`interrupcao-servico` e `adulteracao-config`) na aba `#attacks` do ambiente acadêmico local (`127.0.0.1`).
 
 ## 4. Verificação das portas e interfaces
 
@@ -53,9 +53,9 @@ Todas as portas são vinculadas apenas a `127.0.0.1` (ambiente acadêmico local)
 
 | Serviço | URL / Porta | Função |
 |---|---|---|
-| **Dashboard Principal (Workbyte)** | `http://localhost:8000` | Landing → Login → Visão consolidada, métricas por serviço, recursos, segurança, incidentes e laboratório |
+| **Dashboard Principal (Workbyte)** | `http://localhost:8000` | Landing → Login → Visão consolidada, métricas por serviço, recursos, segurança, incidentes, `#lab` e `#attacks` |
 | **Documentação OpenAPI** | `http://localhost:8000/docs` | Swagger UI (protegido por sessão) |
-| **Aplicação HTTP Demo + Simulador de Ataques** | `http://localhost:8011` | Landing 8-bit WORKBYTE → Login → Painel ao vivo e aba de simulação dos 8 ataques |
+| **Workbyte Store (E-commerce 8-bit)** | `http://localhost:8011` | Loja virtual 8-bit monitorada com checkout integrado ao PostgreSQL e recibo via SMTP |
 | **Serviço HTTP monitorado (`/work`)** | `http://localhost:8011/work` | Endpoint instrumentado pelas sondas e métricas HTTP |
 | **Mailpit — Alertas da Plataforma** | `http://localhost:8025` | Caixa de e-mails para onde o Alertmanager envia notificações `warning` e `critical` |
 | **Mailpit — Receptor do SMTP monitorado** | `http://localhost:8026` | Caixa final das mensagens enviadas pelo laboratório SMTP (`aluno@aularedes.test`) |

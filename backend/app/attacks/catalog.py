@@ -108,6 +108,12 @@ CATALOG = [
             {"name": "duracao", "type": "int", "default": 60, "min": 30, "max": 180},
         ],
         "expected_alerts": [],
+        "expected_alerts_by_target": {
+            "dns": ["DNSIndisponivel"],
+            "smtp": ["SMTPIndisponivel"],
+            "web-demo": ["HTTPIndisponivel"],
+            "postgres": ["PostgreSQLIndisponivel"],
+        },
     },
 ]
 

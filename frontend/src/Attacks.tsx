@@ -27,6 +27,7 @@ export interface AttackSpec {
   description: string;
   params: AttackParam[];
   expected_alerts: string[];
+  expected_alerts_by_target?: Record<string, string[]>;
 }
 
 export interface AttackVerification {
@@ -75,6 +76,19 @@ const STATUS_LABELS: Record<string, string> = {
   interrompido: "Interrompido",
   falhou: "Falhou",
 };
+
+export function resolvedExpectedAlerts(
+  attack: AttackSpec,
+  values: Record<string, string>,
+): string[] {
+  if (attack.expected_alerts.length > 0) return attack.expected_alerts;
+  if (attack.expected_alerts_by_target) {
+    const alvoParam = attack.params.find((p) => p.name === "alvo");
+    const selected = values.alvo ?? (alvoParam ? String(alvoParam.default) : "");
+    return attack.expected_alerts_by_target[selected] ?? [];
+  }
+  return [];
+}
 
 export function statusLabel(status: string): string {
   return STATUS_LABELS[status] ?? status;
@@ -339,6 +353,7 @@ export default function Attacks({ onChanged }: { onChanged?: () => void }) {
           {filteredAttacks.map((attack) => {
             const values = params[attack.id] ?? {};
             const disabled = busyAttack !== null || running !== null;
+            const expectedAlerts = resolvedExpectedAlerts(attack, values);
             return (
               <article key={attack.id} className="attack-card">
                 <div className="attack-card-head">
@@ -351,8 +366,8 @@ export default function Attacks({ onChanged }: { onChanged?: () => void }) {
                 <p className="attack-description">{attack.description}</p>
 
                 <div className="attack-alerts-row">
-                  {attack.expected_alerts.length > 0 ? (
-                    attack.expected_alerts.map((alert) => (
+                  {expectedAlerts.length > 0 ? (
+                    expectedAlerts.map((alert) => (
                       <span key={alert} className="attack-alert-badge">
                         <ShieldAlert size={12} /> {alert}
                       </span>

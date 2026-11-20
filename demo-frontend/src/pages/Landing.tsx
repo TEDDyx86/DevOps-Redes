@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  api,
-  type StoreOrder,
-  type StoreProduct,
-  type StoreStatus,
-} from "../api";
+import { api, type StoreOrder, type StoreProduct } from "../api";
+import { Arcade3DBackground } from "../components/Arcade3DBackground";
 import hero8Bit from "../assets/hero-8bit.jpg";
 import realCartridge from "../assets/real-cartridge.jpg";
 import realCloud3 from "../assets/real-cloud3.jpg";
@@ -57,29 +53,8 @@ function formatBrl(cents: number): string {
   });
 }
 
-function statusPillClass(value: string | undefined): string {
-  if (value === "ok" || value === "online") {
-    return "border-emerald-400/70 bg-emerald-500/15 text-emerald-300";
-  }
-  if (value === "memory" || value === "disabled") {
-    return "border-amber/70 bg-amber/15 text-amber";
-  }
-  return "border-magenta/70 bg-magenta/15 text-magenta";
-}
-
-function formatServiceLabel(value: string | undefined): string {
-  if (!value) return "...";
-  if (value === "ok") return "ONLINE";
-  if (value === "memory") return "MEMÓRIA";
-  if (value === "disabled") return "OFF";
-  if (value === "down") return "FALHA";
-  return value.toUpperCase();
-}
-
 export function Landing() {
   const [products, setProducts] = useState<StoreProduct[]>([]);
-  const [orders, setOrders] = useState<StoreOrder[]>([]);
-  const [status, setStatus] = useState<StoreStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -90,8 +65,8 @@ export function Landing() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
 
-  const [customerName, setCustomerName] = useState("Player One");
-  const [customerEmail, setCustomerEmail] = useState("player1@workbyte.local");
+  const [customerName, setCustomerName] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [lastOrder, setLastOrder] = useState<StoreOrder | null>(null);
@@ -99,16 +74,10 @@ export function Landing() {
   const refreshAll = useCallback(async () => {
     try {
       setLoadError(null);
-      const [catalog, recentOrders, storeStatus] = await Promise.all([
-        api.products(),
-        api.orders(),
-        api.storeStatus(),
-      ]);
+      const catalog = await api.products();
       setProducts(catalog);
-      setOrders(recentOrders);
-      setStatus(storeStatus);
-    } catch (err) {
-      setLoadError(err instanceof Error ? err.message : "Erro ao carregar loja.");
+    } catch {
+      setLoadError("Não foi possível carregar o catálogo no momento. Tente novamente em instantes.");
     } finally {
       setLoading(false);
     }
@@ -195,16 +164,23 @@ export function Landing() {
       setCart([]);
       await refreshAll();
     } catch (err) {
-      setCheckoutError(err instanceof Error ? err.message : "Falha ao concluir pedido.");
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.toLowerCase().includes("estoque")) {
+        setCheckoutError(msg);
+      } else {
+        setCheckoutError("Não foi possível concluir seu pedido no momento. Tente novamente em instantes.");
+      }
     } finally {
       setCheckoutBusy(false);
     }
   };
 
   return (
-    <div className="pixel-grid-bg min-h-screen bg-bg text-slate-100">
+    <div className="relative min-h-screen bg-bg text-slate-100">
+      <Arcade3DBackground />
+      <div className="relative z-10">
       {/* Arcade HUD Topbar */}
-      <header className="sticky top-0 z-40 border-b-2 border-cyan/50 bg-[#05060f]/95 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b-2 border-cyan/50 bg-[#05060f]/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
             <div className="arcade-box-cyan flex h-10 w-10 items-center justify-center border-2 border-cyan bg-cyan/15 font-pixel text-xs text-cyan">
@@ -225,30 +201,21 @@ export function Landing() {
             </div>
           </div>
 
-          {/* Live Arcade Hardware LEDs */}
-          <div className="hidden items-center gap-2 md:flex">
-            <span
-              className={`border-2 px-2 py-1 font-mono text-[11px] uppercase ${statusPillClass(
-                status?.http ?? "ok",
-              )}`}
-            >
-              HTTP {formatServiceLabel(status?.http ?? "ok")}
-            </span>
-            <span
-              className={`border-2 px-2 py-1 font-mono text-[11px] uppercase ${statusPillClass(
-                status?.postgres,
-              )}`}
-            >
-              PG {formatServiceLabel(status?.postgres)}
-            </span>
-            <span
-              className={`border-2 px-2 py-1 font-mono text-[11px] uppercase ${statusPillClass(
-                status?.smtp,
-              )}`}
-            >
-              SMTP {formatServiceLabel(status?.smtp)}
-            </span>
-          </div>
+          {/* Navegação rápida de departamentos */}
+          <nav aria-label="Departamentos" className="hidden items-center gap-4 md:flex">
+            {(["Todas", "Consoles", "Periféricos", "Hardware", "Retrô"] as const).map((dept) => (
+              <a
+                key={dept}
+                href="#catalogo"
+                onClick={() => setCategory(dept)}
+                className={`font-mono text-xs uppercase tracking-wider transition ${
+                  category === dept ? "font-bold text-cyan" : "text-slate-300 hover:text-cyan"
+                }`}
+              >
+                {dept === "Todas" ? "Catálogo" : dept}
+              </a>
+            ))}
+          </nav>
 
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -268,7 +235,7 @@ export function Landing() {
 
       <main className="mx-auto max-w-7xl space-y-10 px-4 py-8 sm:px-6">
         {/* Hero Arcade Stage */}
-        <section className="arcade-box-cyan relative overflow-hidden border-2 border-cyan/60 bg-panel">
+        <section className="arcade-box-cyan relative overflow-hidden border-2 border-cyan/60 bg-panel/80 backdrop-blur-[3px]">
           <div className="grid items-center gap-6 lg:grid-cols-12">
             <div className="space-y-5 p-6 sm:p-8 lg:col-span-6">
               <div className="inline-flex items-center gap-2 border-2 border-amber/80 bg-amber/15 px-3 py-1 font-pixel text-[9px] text-amber">
@@ -276,15 +243,15 @@ export function Landing() {
               </div>
 
               <h1 className="pixel-text-cyan-3d font-pixel text-xl leading-relaxed text-white sm:text-2xl lg:text-[26px]">
-                LEVEL UP NO SEU SETUP &amp; HOMELAB{" "}
+                LEVEL UP NO SEU SETUP GAMER{" "}
                 <span className="whitespace-nowrap text-cyan">8-BIT</span>
               </h1>
 
               <p className="font-mono text-sm leading-relaxed text-slate-300">
-                Equipamentos reais para jogar e montar seu setup:{" "}
+                Equipamentos selecionados para jogar e turbinar seu setup:{" "}
                 <strong className="text-cyan">Consoles, Periféricos &amp; Hardware</strong> — Steam Deck OLED,
-                Switch OLED, controles 8BitDo e Sony, GPUs RTX, SSDs NVMe e clássicos retrô. Cada pedido
-                grava estoque real no PostgreSQL e dispara recibo SMTP no Mailpit.
+                Switch OLED, controles 8BitDo e Sony, GPUs RTX, SSDs NVMe e clássicos retrô. Estoque
+                atualizado na hora, envio expresso e confirmação do pedido por e-mail.
               </p>
 
               <div className="flex flex-wrap gap-3 pt-1">
@@ -306,18 +273,16 @@ export function Landing() {
               {/* Mini HUD Stats */}
               <div className="grid grid-cols-3 gap-2 pt-2">
                 <div className="border-2 border-panel-edge bg-bg/80 p-2.5">
-                  <div className="font-mono text-[10px] uppercase text-slate-400">SKUs Ativos</div>
-                  <div className="mt-1 font-pixel text-xs text-cyan">{products.length || 12}</div>
+                  <div className="font-mono text-[10px] uppercase text-slate-400">Em Estoque</div>
+                  <div className="mt-1 font-pixel text-xs text-cyan">{products.length || 12} ITENS</div>
                 </div>
                 <div className="border-2 border-panel-edge bg-bg/80 p-2.5">
-                  <div className="font-mono text-[10px] uppercase text-slate-400">Banco SQL</div>
-                  <div className="mt-1 font-pixel text-xs text-emerald-300">
-                    {formatServiceLabel(status?.postgres)}
-                  </div>
+                  <div className="font-mono text-[10px] uppercase text-slate-400">Envio Rápido</div>
+                  <div className="mt-1 font-pixel text-xs text-emerald-300">24H BR</div>
                 </div>
                 <div className="border-2 border-panel-edge bg-bg/80 p-2.5">
-                  <div className="font-mono text-[10px] uppercase text-slate-400">Pedidos</div>
-                  <div className="mt-1 font-pixel text-xs text-magenta">{orders.length}</div>
+                  <div className="font-mono text-[10px] uppercase text-slate-400">Garantia</div>
+                  <div className="mt-1 font-pixel text-xs text-magenta">12 MESES</div>
                 </div>
               </div>
             </div>
@@ -338,7 +303,7 @@ export function Landing() {
 
         {/* Stage Select / Search & Categories */}
         <section id="catalogo" className="space-y-5">
-          <div className="arcade-box border-2 border-panel-edge bg-panel p-4 sm:p-5">
+          <div className="arcade-box border-2 border-panel-edge bg-panel/85 p-4 backdrop-blur-[3px] sm:p-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="font-pixel text-sm text-cyan sm:text-base">
@@ -385,7 +350,7 @@ export function Landing() {
 
           {loadError && (
             <div className="arcade-box border-2 border-magenta bg-magenta/10 p-4 font-mono text-sm text-magenta">
-              ERRO DE CARREGAMENTO: {loadError}
+              {loadError}
             </div>
           )}
 
@@ -410,7 +375,7 @@ export function Landing() {
                 return (
                   <article
                     key={product.slug}
-                    className="arcade-box flex flex-col justify-between border-2 border-panel-edge bg-panel transition hover:border-cyan"
+                    className="arcade-box flex flex-col justify-between border-2 border-panel-edge bg-panel/85 backdrop-blur-[3px] transition hover:border-cyan"
                   >
                     <div>
                       <div className="flex items-center justify-between border-b-2 border-panel-edge bg-bg px-3 py-2">
@@ -473,63 +438,31 @@ export function Landing() {
           )}
         </section>
 
-        {/* Recent PostgreSQL Orders Ledger */}
-        <section className="arcade-box-magenta border-2 border-magenta/50 bg-panel p-5 sm:p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-panel-edge pb-4">
-            <div>
-              <h2 className="font-pixel text-xs text-magenta sm:text-sm">
-                Últimos pedidos gravados no PostgreSQL
-              </h2>
-              <p className="mt-1 font-mono text-xs text-slate-400">
-                Registro em tempo real das compras finalizadas com confirmação SMTP.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => void refreshAll()}
-              className="arcade-btn border-2 border-cyan/60 bg-bg px-3 py-1.5 font-mono text-xs text-cyan hover:border-cyan"
-            >
-              ATUALIZAR LOG
-            </button>
-          </div>
-
-          {orders.length === 0 ? (
-            <p className="py-6 text-center font-mono text-xs text-slate-400">
-              NENHUM PEDIDO REGISTRADO AINDA. ADICIONE ITENS À MOCHILA PARA GERAR UM NOVO LOG!
+        {/* Faixa de benefícios e rodapé de e-commerce */}
+        <section className="grid gap-4 md:grid-cols-3">
+          <div className="arcade-box border-2 border-panel-edge bg-panel/85 p-5 backdrop-blur-[3px]">
+            <div className="font-pixel text-[10px] text-cyan">ENVIO EXPRESSO</div>
+            <p className="mt-2 font-mono text-xs leading-relaxed text-slate-300">
+              Despacho em até 24h úteis com embalagem reforçada e código de rastreio enviado por e-mail.
             </p>
-          ) : (
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
-              {orders.slice(0, 6).map((order) => (
-                <div
-                  key={order.order_code}
-                  className="border-2 border-panel-edge bg-bg p-3 font-mono text-xs"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-pixel text-[10px] text-amber">{order.order_code}</span>
-                    <span
-                      className={`border px-2 py-0.5 text-[10px] ${
-                        order.email_sent
-                          ? "border-emerald-400/60 bg-emerald-500/15 text-emerald-300"
-                          : "border-amber/60 bg-amber/15 text-amber"
-                      }`}
-                    >
-                      {order.email_sent ? "SMTP OK" : "SMTP PENDENTE"}
-                    </span>
-                  </div>
-                  <div className="mt-2 text-slate-200">
-                    {order.customer_name} &lt;{order.customer_email}&gt;
-                  </div>
-                  <div className="mt-1 flex items-center justify-between text-slate-400">
-                    <span>
-                      {order.items.map((it) => `${it.quantity}x ${it.name}`).join(" · ")}
-                    </span>
-                    <span className="font-bold text-cyan">{formatBrl(order.total_cents)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          </div>
+          <div className="arcade-box border-2 border-panel-edge bg-panel/85 p-5 backdrop-blur-[3px]">
+            <div className="font-pixel text-[10px] text-amber">GARANTIA OFICIAL</div>
+            <p className="mt-2 font-mono text-xs leading-relaxed text-slate-300">
+              Produtos originais com nota fiscal, 12 meses de garantia e troca facilitada em até 7 dias.
+            </p>
+          </div>
+          <div className="arcade-box border-2 border-panel-edge bg-panel/85 p-5 backdrop-blur-[3px]">
+            <div className="font-pixel text-[10px] text-magenta">SUPORTE GAMER</div>
+            <p className="mt-2 font-mono text-xs leading-relaxed text-slate-300">
+              Especialistas em hardware, consoles e retrô prontos para ajudar na escolha do seu setup.
+            </p>
+          </div>
         </section>
+
+        <footer className="border-t-2 border-panel-edge/80 pt-6 pb-4 text-center font-mono text-xs text-slate-400">
+          © 2026 WORKBYTE STORE · Consoles, Periféricos &amp; Hardware Gamer · Todos os direitos reservados
+        </footer>
       </main>
 
       {/* Product Detail Modal */}
@@ -632,13 +565,13 @@ export function Landing() {
               {lastOrder && (
                 <div className="arcade-box-cyan border-2 border-emerald-400 bg-emerald-500/10 p-3 font-mono text-xs text-emerald-200">
                   <div className="font-pixel text-[10px] text-emerald-300">
-                    QUEST CONCLUÍDA: {lastOrder.order_code}
+                    PEDIDO CONFIRMADO: {lastOrder.order_code}
                   </div>
                   <p className="mt-1">
-                    Pedido salvo no PostgreSQL!{" "}
+                    Compra realizada com sucesso!{" "}
                     {lastOrder.email_sent
-                      ? "Recibo enviado via SMTP para o Mailpit (:8026)."
-                      : "SMTP indisponível no momento."}
+                      ? "Enviamos a confirmação e o resumo para o seu e-mail."
+                      : "Você receberá a confirmação por e-mail em instantes."}
                   </p>
                 </div>
               )}
@@ -711,7 +644,7 @@ export function Landing() {
                 required
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Nome do jogador / cliente"
+                placeholder="Seu nome completo"
                 className="w-full border-2 border-panel-edge bg-bg px-3 py-2 font-mono text-xs text-white focus:border-cyan focus:outline-none"
               />
               <input
@@ -719,7 +652,7 @@ export function Landing() {
                 required
                 value={customerEmail}
                 onChange={(e) => setCustomerEmail(e.target.value)}
-                placeholder="E-mail para recibo SMTP"
+                placeholder="seuemail@exemplo.com"
                 className="w-full border-2 border-panel-edge bg-bg px-3 py-2 font-mono text-xs text-white focus:border-cyan focus:outline-none"
               />
 
@@ -734,12 +667,13 @@ export function Landing() {
                 disabled={cart.length === 0 || checkoutBusy}
                 className="arcade-btn w-full border-2 border-magenta bg-magenta px-4 py-3 font-pixel text-[10px] text-white hover:bg-magenta/90 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {checkoutBusy ? "GRAVANDO PEDIDO..." : "FINALIZAR COMPRA"}
+                {checkoutBusy ? "PROCESSANDO PEDIDO..." : "FINALIZAR COMPRA"}
               </button>
             </form>
           </aside>
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -200,6 +200,38 @@ def test_flood_dns_para_quando_alerta_fica_firing(monkeypatch):
     assert any("firing" in m for m in ctx.logs)
 
 
+def test_flood_smtp_envia_para_destinatario_aceito_e_para_em_firing(monkeypatch):
+    enviados = []
+
+    class FakeSMTP:
+        def __init__(self, host, port, timeout=3):
+            self.host = host
+            self.port = port
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def send_message(self, msg):
+            enviados.append(msg["To"])
+
+    def handler(request):
+        return httpx.Response(200, json={"status": "success", "data": {"result": [{"metric": {"alertname": "TrafegoAnormal"}}]}})
+
+    monkeypatch.setattr(runners.smtplib, "SMTP", FakeSMTP)
+    monkeypatch.setattr(runners, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(handler), trust_env=False))
+    monkeypatch.setattr(runners.time, "sleep", lambda _s: None)
+    ctx = FakeCtx()
+    runners.flood_smtp(ctx, {"duracao": 3})
+    assert enviados == ["aluno@aularedes.test"]
+    assert ctx.counters["sucesso"] >= 1
+    assert ctx.counters["falhas"] == 0
+    assert ctx.expected == ["TrafegoAnormal"]
+    assert any("firing" in m for m in ctx.logs)
+
+
 def test_flood_postgres_para_quando_alerta_fica_firing(monkeypatch):
     execs = []
 

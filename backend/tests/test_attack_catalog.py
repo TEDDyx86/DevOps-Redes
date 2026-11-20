@@ -57,4 +57,11 @@ def test_alertas_esperados_por_ataque():
     assert expected_alerts("adulteracao-config") == ["ConfiguracaoAlterada"]
     assert expected_alerts("varredura-404") == []
     assert expected_alerts("interrupcao-servico") == []
+    interrupcao = next(item for item in catalog() if item["id"] == "interrupcao-servico")
+    assert interrupcao["expected_alerts_by_target"] == {
+        "dns": ["DNSIndisponivel"],
+        "smtp": ["SMTPIndisponivel"],
+        "web-demo": ["HTTPIndisponivel"],
+        "postgres": ["PostgreSQLIndisponivel"],
+    }
     assert set(SPECS) == {a["id"] for a in catalog()}

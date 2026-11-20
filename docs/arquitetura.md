@@ -82,7 +82,7 @@ flowchart LR
     P -->|quatro regras| A[Alertmanager]
 ```
 
-O worker usa SDK Docker em venv própria, com dependências fixadas por hash. Somente o host acessa o named pipe/socket local. A API não recebe socket nem SDK e lê um documento normalizado de até 64 KiB, com quatro identidades fixas. Consulta da Engine, subprocessos e leituras possuem limites de tempo/tamanho; a medição confere ID/início antes e depois. A montagem contém somente snapshots/controle do coletor, sem estatísticas raw nem segredos.
+O worker usa SDK Docker em venv própria, com dependências fixadas por hash. A leitura de recursos pela plataforma consome apenas um documento normalizado de até 64 KiB com quatro identidades fixas, em montagem somente leitura na API, sem expor estatísticas raw ou segredos do worker. (Observação: para permitir a execução reversível do ataque `interrupcao-servico` diretamente na aba `#attacks` do dashboard em ambiente acadêmico `127.0.0.1`, o contêiner `api` recebeu montagem dedicada do socket Docker usada exclusivamente por esse runner.)
 
 CPU usa delta do tempo CPU por intervalo real (núcleos equivalentes); memória desconta cache inativo; I/O usa deltas de bytes de blocos. Primeiro ponto, reinício e counters/intervalos inválidos deixam taxas ausentes. Cada campo possui disponibilidade própria; falha de um contêiner não invalida os demais. Depois de 20 s sem medição atual, a API omite gauges de consumo e a UI mostra desconhecido. O snapshot do schema 2 acrescenta o espaço livre do volume do projeto (`service_resource_host_free_bytes`/`_total_bytes`), medido por `shutil.disk_usage` a cada rodada; sem o bloco, o gauge fica ausente em vez de zerar. Histórico mascara por disponibilidade e `up` da API; medidas atuais não dependem da consulta de histórico.
 
@@ -96,9 +96,9 @@ CPU usa delta do tempo CPU por intervalo real (núcleos equivalentes); memória 
 | Última coleta | probe_checked_at_seconds | Momento real da conclusão da sonda |
 | Latência da sonda | probe_duration_seconds | Tempo de uma verificação, em ms na interface |
 | Disponibilidade | avg_over_time(probe_success[período]) | Percentual sobre sondas existentes, não sobre o tempo anterior à instalação |
-| RPS | rate(demo_http_requests_total[1m]) | Somente /work; exclui tráfego de health e métricas |
-| Erros | rate(4xx + 5xx) / rate(total) | Percentual no último minuto; sem tráfego significa sem valor |
-| p95 | histogram_quantile(0.95, rate(buckets[1m])) | Estimativa por histograma, não duração exata de cada requisição |
+| RPS | rate(demo_http_requests_total[1m]) | Inclui `/work` e rotas da loja (`/api/products`, `/api/orders`, `/api/store/status`), excluindo `/health` |
+| Erros | rate(4xx + 5xx) / rate(total) | Percentual no último minuto (excluindo `/health`); sem tráfego significa sem valor |
+| p95 | histogram_quantile(0.95, rate(buckets[1m])) | Estimativa por histograma das rotas da aplicação e loja (excluindo `/health`) |
 
 Taxas usam janela móvel de um minuto. O seletor 15m/1h/6h/24h define o intervalo exibido e o cálculo de disponibilidade. Histogramas preservam as falhas HTTP 503. O endpoint `/metrics` continua acessível nos modos de falha, permitindo distinguir um serviço HTTP com erro de um coletor indisponível.
 

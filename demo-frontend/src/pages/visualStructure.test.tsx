@@ -5,7 +5,7 @@ import Landing from "./Landing";
 import Panel from "./Panel";
 
 describe("public storefront visual structure", () => {
-  it("renders the mini store catalog shell without attack panel button", () => {
+  it("renders a clean production storefront without internal infra flags or attack buttons", () => {
     const markup = renderToStaticMarkup(createElement(Landing));
 
     expect(markup).toContain("WORKBYTE");
@@ -13,7 +13,11 @@ describe("public storefront visual structure", () => {
     expect(markup).toContain("Consoles, Periféricos &amp; Hardware");
     expect(markup).not.toContain("Painel / Ataques");
     expect(markup).not.toContain("TESTAR 404");
-    expect(markup).toContain("Últimos pedidos gravados no PostgreSQL");
+    expect(markup).not.toContain("PostgreSQL");
+    expect(markup).not.toContain("SMTP");
+    expect(markup).not.toContain("Mailpit");
+    expect(markup).not.toContain("Banco SQL");
+    expect(markup).not.toContain("HTTP ONLINE");
   });
 });
 

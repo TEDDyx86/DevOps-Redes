@@ -15,7 +15,7 @@ from .metrics import finite, scalar
 
 SERVICES = {
     "web-demo": {"name":"HTTP", "floor":2, "unit":"req/s", "scale":1,
-                 "rate":'sum(rate(demo_http_requests_total{job="web-demo",path="/work"}[1m]))', "job":"web-demo", "probe":"probe"},
+                 "rate":'sum(rate(demo_http_requests_total{job="web-demo",path!="/health"}[1m]))', "job":"web-demo", "probe":"probe"},
     "postgres": {"name":"PostgreSQL", "floor":5, "unit":"comandos/s", "scale":1,
                  "rate":'rate(postgres_workload_statements_total{job="platform"}[1m])', "job":"platform", "probe":"postgres_probe"},
     "dns": {"name":"DNS", "floor":5, "unit":"consultas/s", "scale":1,

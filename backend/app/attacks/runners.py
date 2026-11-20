@@ -328,7 +328,7 @@ def flood_smtp(ctx, params):
             msg = EmailMessage()
             msg["Subject"] = f"Carga SMTP {tentativas}"
             msg["From"] = "lab-carga@aularedes.test"
-            msg["To"] = "inbox@aularedes.test"
+            msg["To"] = "aluno@aularedes.test"
             msg.set_content("Mensagem sintética controlada pelo painel de ataques.")
             try:
                 with smtplib.SMTP(host, port, timeout=3) as client:

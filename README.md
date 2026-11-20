@@ -37,9 +37,9 @@ flowchart LR
 
 | Componente | Endereço | Descrição |
 |---|---|---|
-| **Dashboard Workbyte** | http://localhost:8000 | Landing pública → login → painel consolidado e por serviço |
+| **Dashboard Workbyte** | http://localhost:8000 | Landing pública → login → painel consolidado, serviços, segurança, incidentes, `#lab` e `#attacks` |
 | **Documentação da API** | http://localhost:8000/docs | Swagger UI da API FastAPI (protegido por sessão) |
-| **Web-Demo + Painel de Ataques** | http://localhost:8011 | Aplicação HTTP 8-bit (`WORKBYTE`) com login e aba de simulação de ataques |
+| **Workbyte Store (E-commerce 8-bit)** | http://localhost:8011 | Loja virtual gamer monitorada integrada ao PostgreSQL e ao SMTP local (sem painel de ataques) |
 | **Endpoint HTTP Monitorado** | http://localhost:8011/work | Alvo principal das sondas de disponibilidade, RPS, latência e conexões |
 | **Mailpit — E-mails de Alerta** | http://localhost:8025 | Caixa local independente onde chegam alertas `Atenção`, `Crítico` e recuperações |
 | **Mailpit — Caixa SMTP Monitorada** | http://localhost:8026 | Receptor final das mensagens entregues pelo servidor SMTP do laboratório |
@@ -51,7 +51,7 @@ flowchart LR
 ## Funcionalidades da Plataforma
 
 ### 1. Monitoramento dos 4 Serviços de Rede
-- **Web Server HTTP (`#service`):** disponibilidade (`GET /health`), requisições por segundo (RPS), latência da sonda e p95 (`/work`), taxa percentual de erros (`4xx`/`5xx`), **contagem discriminada por código de erro HTTP na janela** e **conexões ativas** (`demo_http_requests_inflight`).
+- **Web Server HTTP (`#service`):** disponibilidade (`GET /health`), requisições por segundo (RPS), latência da sonda e p95 (`/work` e rotas da loja `/api/products`, `/api/orders`, `/api/store/status`, excluindo `/health`), taxa percentual de erros (`4xx`/`5xx`), **contagem discriminada por código de erro HTTP na janela** e **conexões ativas** (`demo_http_requests_inflight`).
 - **Banco de Dados PostgreSQL 17.11 (`#postgres`):** disponibilidade (`SELECT 1`), QPS via `pg_stat_statements`, commits/rollbacks por segundo, conexões abertas vs. `max_connections` com separação ativa/ociosa (`pg_stat_activity`), consultas lentas (`mean_exec_time > 100 ms`), latência de leitura/gravação de blocos (`pg_stat_io`), tamanho e crescimento projetado (`GiB/dia`).
 - **Servidor DNS CoreDNS (`#dns`):** disponibilidade em UDP e TCP para a zona local `aularedes.test`, tempo de resolução, consultas por segundo (QPS), p95 do servidor e separação explícita entre `NXDOMAIN` e erros do servidor (`SERVFAIL`/`REFUSED`/`FORMERR`/`NOTIMP`).
 - **Servidor SMTP (`#smtp`):** servidor `aiosmtpd` com fila SQLite persistente e entrega ao receptor `smtp-inbox`, medindo taxa de entrega, tamanho da fila (`Queue length`), latência p95 aceitação → entrega, volume por minuto/hora, rejeições (`550`) e tentativas falhas/timeouts.
@@ -68,7 +68,8 @@ flowchart LR
 - **Anomalias de tráfego / DDoS (`#security`):** aprendizado de referência contínua (120 s) para os 4 protocolos, com limiar `max(3× referência, piso)` e alerta `TrafegoAnormal`.
 - **Autenticação e Brute-Force (`#security`):** proteção por sessão `HttpOnly/SameSite`, CSRF, bloqueio temporário por IP (5 falhas/60 s) e por conta (10 falhas/60 s), além de contador `demo_auth_attempts_total` para ataques ao serviço HTTP.
 - **Recursos de infraestrutura (`#resources`):** coletor local via Docker SDK mede CPU (núcleos equivalentes), memória (working set), leitura/gravação de blocos (`KiB/s`) dos 4 contêineres e espaço livre no volume do projeto.
-- **Laboratório (`#lab`) e Painel de Ataques (`http://localhost:8011`):** o painel em `#lab` permite simular lentidão/offline e carga controlada de tráfego; o app `web-demo` em `:8011` possui aba dedicada de **Simulação de ataques** com 8 cenários reais reversíveis (força bruta, sobrecarga HTTP, indisponibilidade, floods DNS/SMTP, adulteração de configuração e interrupção de serviço).
+- **Laboratório (`#lab`) e Painel de Ataques (`#attacks` em `:8000`):** o painel em `#lab` permite simular lentidão/offline e carga controlada de tráfego com `LAB_TOKEN`; já a aba dedicada **Ataques (`http://localhost:8000/#attacks`)** oferece uma suíte automatizada com **11 cenários reversíveis** (força bruta, sobrecarga/lentidão/indisponibilidade HTTP, varredura 404, floods DNS/SMTP/SQL, adulteração de configuração e interrupção de contêineres), fila sequencial, log SSE ao vivo e verificação automática no Prometheus.
+- **Aplicação real monitorada — Workbyte Store (`http://localhost:8011`):** loja virtual 8-bit com 12 produtos reais de hardware e games, cujo checkout grava pedidos e baixa estoque no PostgreSQL e dispara e-mails de confirmação no SMTP monitorado.
 
 ---
 
@@ -129,8 +130,9 @@ Mais detalhes em [Guia de Instalação](docs/instalacao.md).
    - Cole o `LAB_TOKEN` e ative **Resposta lenta** (+850 ms → alerta `HTTPLento` após 30 s) ou **Indisponibilidade** (HTTP 503 → alerta `HTTPIndisponivel` após 15 s).
    - Acompanhe a mudança de estado no dashboard, o incidente registrado em `#incidents` e o e-mail em http://localhost:8025.
    - Volte para **Operação normal** e observe a resolução automática e o e-mail de recuperação.
-4. **Demonstrar ataques reais pelo Web-Demo (`:8011`):**
-   - Acesse http://localhost:8011, faça login com as mesmas credenciais do `.env`, abra a aba de **Simulação de ataques** e dispare qualquer um dos 8 ataques do catálogo (todos reversíveis automaticamente ao final). Veja [runbook-painel-ataques.md](docs/runbook-painel-ataques.md).
+4. **Demonstrar a aplicação real (`:8011`) e o Painel de Ataques (`:8000/#attacks`):**
+   - Acesse http://localhost:8011, navegue pelo catálogo da **Workbyte Store**, finalize uma compra para gerar transações reais no PostgreSQL e recibo no receptor SMTP (`http://localhost:8026`).
+   - Em seguida, acesse http://localhost:8000/#attacks no próprio dashboard de monitoramento e dispare qualquer um dos **11 ataques reversíveis** do catálogo, acompanhando os contadores SSE e a confirmação automática do alerta no Prometheus. Veja [runbook-painel-ataques.md](docs/runbook-painel-ataques.md).
 
 ---
 
@@ -192,7 +194,7 @@ cd frontend
 npm run test:e2e
 ```
 
-O teste ([navegacao.spec.ts](frontend/e2e/navegacao.spec.ts)) lê `ADMIN_USERNAME`/`ADMIN_PASSWORD` do `.env`, realiza o login pela interface, percorre todas as **9 páginas** do menu lateral validando métricas e marcadores reais, verifica ausência de erros de console e testa o viewport mobile (`390×844`) sem transbordamento horizontal.
+O teste ([navegacao.spec.ts](frontend/e2e/navegacao.spec.ts)) lê `ADMIN_USERNAME`/`ADMIN_PASSWORD` do `.env`, realiza o login pela interface, percorre todas as **10 páginas** do menu lateral (incluindo `#attacks`) validando métricas e marcadores reais, verifica ausência de erros de console e testa o viewport mobile (`390×844`) sem transbordamento horizontal.
 
 ### 5. Scripts de verificação integrada ponta a ponta (com a stack rodando)
 
@@ -247,7 +249,7 @@ Execute os roteiros abaixo **sequencialmente** (um por vez, sem reconstruir serv
 | [Runbook de Vulnerabilidades](docs/runbook-vulnerabilidades.md) | Syft/Grype isolados, validade e triagem |
 | [Runbook de Recursos](docs/runbook-recursos.md) | CPU, memória, I/O de blocos e espaço livre |
 | [Runbook de Incidentes e Reconciliação](docs/runbook-incidentes.md) | Reconciliação de histórico no SQLite e backup |
-| [Runbook do Painel de Ataques](docs/runbook-painel-ataques.md) | Catálogo dos 8 ataques no `web-demo` (`:8011`) |
+| [Runbook do Painel de Ataques](docs/runbook-painel-ataques.md) | Catálogo dos 11 ataques integrados ao dashboard (`:8000/#attacks`) |
 | [Validação e Evidências](docs/validacao.md) | Histórico de testes, revisões e capturas em `docs/evidencias/` |
 
 ---

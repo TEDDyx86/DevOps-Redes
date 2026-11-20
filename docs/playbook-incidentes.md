@@ -21,7 +21,7 @@ flowchart LR
 ```
 
 1. **Detectar:** confirmar o alerta em `http://localhost:8000/#incidents`, no Prometheus (`http://localhost:9090/alerts`) e o recebimento do e-mail em `http://localhost:8025`. Verificar se o alerta está `firing` (confirmado após a janela `for:`) ou apenas `pending`.
-2. **Conter:** avaliar se a falha decorre de teste ativo no **Laboratório** (`:8000/#lab`) ou no **Painel de Simulação de Ataques** (`:8011`), isolar o componente afetado sem destruir volumes de dados (`não` executar `docker compose down -v`).
+2. **Conter:** avaliar se a falha decorre de teste ativo no **Laboratório** (`:8000/#lab`) ou na aba **Ataques** (`:8000/#attacks`), isolar o componente afetado sem destruir volumes de dados (`não` executar `docker compose down -v`).
 3. **Diagnosticar:** consultar o dashboard do serviço afetado, logs (`docker compose logs --tail 100 <serviço>`), alvos do Prometheus (`http://localhost:9090/targets`) e estado dos coletores locais (`scan_vulnerabilities.py`, `collect_resources.py`).
 4. **Remediar:** executar os passos do runbook correspondente ao alerta (restaurar serviço, normalizar modo do laboratório, aprovar ou reverter arquivo alterado, liberar espaço em disco, corrigir imagem).
 5. **Comunicar e confirmar recuperação:** validar que o estado voltou para **Verde (Operacional)** no painel, o incidente foi marcado como **Resolvido** e o e-mail de recuperação chegou ao Mailpit (`:8025`).
@@ -64,7 +64,7 @@ flowchart LR
 ### 3.5 Segurança e monitoramentos extras
 | Alerta | Nível | Janela `for:` | Causa provável | Ação imediata | Runbook |
 |---|---|---|---|---|---|
-| `TrafegoAnormal` | Atenção | 30 s | Taxa do serviço > `max(3× referência, piso)` (pico/flood) | Conferir origem do tráfego, job de carga em `#lab` ou painel `:8011` | [runbook-trafego.md](runbook-trafego.md) |
+| `TrafegoAnormal` | Atenção | 30 s | Taxa do serviço > `max(3× referência, piso)` (pico/flood) | Conferir origem do tráfego, job de carga em `#lab` ou `#attacks` | [runbook-trafego.md](runbook-trafego.md) |
 | `TrafegoColetaIndisponivel` | Atenção | 30 s | Sonda/fonte indisponível para calcular taxa de tráfego | Verificar Prometheus e o serviço correspondente | [runbook-trafego.md](runbook-trafego.md) |
 | `AutenticacaoSuspeita` | Atenção | 10 s | >= 5 falhas por IP ou >= 10 por conta em 60 s no painel (`:8000`) | Conferir IPs/usuários em `#security`; aguardar janela de bloqueio (60 s) | [runbook-autenticacao.md](runbook-autenticacao.md) |
 | `AutenticacaoServicoSuspeita` | Atenção | 30 s | >= 5 tentativas com token inválido em `POST /mode` no `web-demo` | Conferir origem de chamadas ao `web-demo` | [runbook-autenticacao.md](runbook-autenticacao.md) |

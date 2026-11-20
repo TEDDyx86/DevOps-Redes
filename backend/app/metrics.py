@@ -8,11 +8,11 @@ import httpx
 WINDOWS = {"15m": 900, "1h": 3600, "6h": 21600, "24h": 86400}
 PROBE = 'probe_success{job="platform"}'
 LATENCY = 'probe_duration_seconds{job="platform"}'
-RPS = 'sum(rate(demo_http_requests_total{job="web-demo",path="/work"}[1m]))'
-P95 = 'histogram_quantile(0.95, sum by(le)(rate(demo_http_duration_seconds_bucket{job="web-demo",path="/work"}[1m])))'
-ERROR_RATE = '(sum(rate(demo_http_requests_total{job="web-demo",path="/work",status=~"4..|5.."}[1m])) or vector(0)) / sum(rate(demo_http_requests_total{job="web-demo",path="/work"}[1m])) * 100'
+RPS = 'sum(rate(demo_http_requests_total{job="web-demo",path!="/health"}[1m]))'
+P95 = 'histogram_quantile(0.95, sum by(le)(rate(demo_http_duration_seconds_bucket{job="web-demo",path!="/health"}[1m])))'
+ERROR_RATE = '(sum(rate(demo_http_requests_total{job="web-demo",path!="/health",status=~"4..|5.."}[1m])) or vector(0)) / sum(rate(demo_http_requests_total{job="web-demo",path!="/health"}[1m])) * 100'
 CONNECTIONS = 'demo_http_requests_inflight{job="web-demo"}'
-ERROR_CODES = 'sum by(status)(increase(demo_http_requests_total{{job="web-demo",status=~"4..|5.."}}[{window}]))'
+ERROR_CODES = 'sum by(status)(increase(demo_http_requests_total{{job="web-demo",path!="/health",status=~"4..|5.."}}[{window}]))'
 
 
 def finite(value):
@@ -77,7 +77,7 @@ class PrometheusClient:
             'probe_checked_at_seconds{job="platform"}',
             RPS, P95, ERROR_RATE,
             f"avg_over_time({PROBE}[{window}]) * 100",
-            'max(timestamp(demo_http_requests_total{job="web-demo",path="/work"}))',
+            'max(timestamp(demo_http_requests_total{job="web-demo",path!="/health"}))',
             CONNECTIONS,
             ERROR_CODES.format(window=window),
         ]

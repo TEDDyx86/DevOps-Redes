@@ -219,3 +219,11 @@ def test_overview_hides_connections_and_error_codes_when_demo_stale_or_empty(tmp
         data = client.get("/api/overview").json()
         assert data["service"]["connections"] is None
         assert data["service"]["error_codes"] == {}
+
+
+def test_http_metrics_queries_cover_store_routes_and_exclude_health():
+    from backend.app import metrics
+
+    for expr in (metrics.RPS, metrics.P95, metrics.ERROR_RATE, metrics.ERROR_CODES):
+        assert 'path!="/health"' in expr
+        assert 'path="/work"' not in expr
