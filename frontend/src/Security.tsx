@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { KeyRound, ShieldCheck, TriangleAlert } from "lucide-react";
+import { Ban, KeyRound, ShieldAlert, ShieldCheck, TriangleAlert, UserX } from "lucide-react";
 import { request } from "./api";
 import { IncidentsList, timeLabel } from "./components";
 import type { Incident } from "./types";
@@ -39,7 +39,7 @@ export default function Security({
   incidents: Incident[];
   refresh: number;
 }) {
-  const [section, setSection] = useState<SecuritySection>("all");
+  const [section, setSection] = useState<SecuritySection>("vulnerabilities");
   const [data, setData] = useState<SecurityData | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -150,12 +150,16 @@ export default function Security({
           <p>Acumulado desde o início do volume</p>
         </div>
         <div className="metric">
-          <span>Credenciais inválidas</span>
+          <span>
+            Credenciais inválidas <UserX size={15} />
+          </span>
           <strong>{data?.totals.failure ?? "—"}</strong>
           <p>Acumulado · não inclui bloqueios prévios</p>
         </div>
         <div className="metric">
-          <span>Maior número de falhas por IP</span>
+          <span>
+            Maior número de falhas por IP <ShieldAlert size={15} />
+          </span>
           <strong>
             {data?.failures_recent.ip ?? "—"}
             <small> / 5</small>
@@ -163,7 +167,9 @@ export default function Security({
           <p>Janela móvel de 60 segundos</p>
         </div>
         <div className="metric">
-          <span>Tentativas bloqueadas</span>
+          <span>
+            Tentativas bloqueadas <Ban size={15} />
+          </span>
           <strong>{data?.blocked_recent ?? "—"}</strong>
           <p>Na última janela de 60 segundos</p>
         </div>

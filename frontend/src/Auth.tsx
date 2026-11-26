@@ -144,7 +144,7 @@ export default function Auth() {
           </span>
         </a>
         <div className="login-story">
-          <span className="eyebrow">LABORATÓRIO DE REDES</span>
+          <span className="eyebrow">WORKBYTE · LABORATÓRIO DE REDES</span>
           <h1>
             Quatro serviços.
             <br />

@@ -143,3 +143,16 @@ export interface Lab {
   available: boolean;
   traffic_interval_seconds: number;
 }
+
+export interface LiveAlertItem {
+  alertname: string;
+  service: string;
+  severity: string;
+  state: "pending" | "firing";
+}
+
+export interface LiveAlerts {
+  available: boolean;
+  firing: LiveAlertItem[];
+  pending: LiveAlertItem[];
+}

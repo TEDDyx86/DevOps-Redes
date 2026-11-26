@@ -52,4 +52,43 @@ describe("página de incidentes", () => {
     expect(html).toContain("Reconciliados (1)");
     expect(html).toContain("HTTP (web-demo)");
   });
+
+  it("pagina o histórico quando há mais de 20 incidentes", () => {
+    const many: Incident[] = Array.from({ length: 25 }, (_, index) => ({
+      fingerprint: `fp-${index + 1}`,
+      started_at: `2026-11-17T10:${String(index).padStart(2, "0")}:00Z`,
+      ended_at: null,
+      name: "HTTPIndisponivel",
+      summary: `Incidente ${index + 1}`,
+      description: "Teste de paginação",
+      severity: "warning",
+      service: "web-demo",
+      status: "firing",
+    }));
+    const html = renderToStaticMarkup(<IncidentsView incidents={many} />);
+    expect(html).toContain("Incidente 1");
+    expect(html).toContain("Incidente 20");
+    expect(html).not.toContain("Incidente 21");
+    expect(html).toContain("Mostrando 1–20 de 25 · Página 1 de 2");
+  });
+
+  it("exibe painel de alertas ao vivo quando há alertas pending ou firing", () => {
+    const html = renderToStaticMarkup(
+      <IncidentsView
+        incidents={sample}
+        liveAlerts={{
+          available: true,
+          firing: [
+            { alertname: "HTTPLento", service: "web-demo", severity: "warning", state: "firing" },
+          ],
+          pending: [
+            { alertname: "TrafegoAnormal", service: "dns", severity: "warning", state: "pending" },
+          ],
+        }}
+      />,
+    );
+    expect(html).toContain("Alertas ativos no Prometheus (ao vivo)");
+    expect(html).toContain("FIRING · HTTPLento (web-demo)");
+    expect(html).toContain("PENDING · TrafegoAnormal (dns)");
+  });
 });

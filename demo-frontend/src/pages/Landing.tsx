@@ -295,7 +295,7 @@ export function Landing() {
               />
               <div className="arcade-scanlines pointer-events-none absolute inset-0" />
               <div className="absolute bottom-3 right-3 border-2 border-magenta bg-bg/90 px-3 py-1 font-pixel text-[9px] text-magenta">
-                BOSS LOOT · 16-BIT EDITION
+                BOSS LOOT · 8-BIT EDITION
               </div>
             </div>
           </div>

@@ -78,12 +78,14 @@ export function SignalChart({
   title,
   subtitle,
   unit,
+  emptyHint = "As taxas aparecem após duas coletas. O laboratório gera tráfego real automaticamente.",
 }: {
   data: ChartSample[];
   metric: "rps" | "qps" | "messages_per_minute" | "latency_ms" | "cpu_cores" | "memory_mib" | "read_kibps" | "write_kibps";
   title: string;
   subtitle: string;
   unit: string;
+  emptyHint?: string;
 }) {
   const hasData = data.some(
     (row) => row[metric] != null && Number.isFinite(row[metric]),
@@ -121,18 +123,25 @@ export function SignalChart({
                 type="number"
                 domain={["dataMin", "dataMax"]}
                 tickFormatter={(value) => timeLabel(value).slice(0, 5)}
-                tick={{ fill: "#9aa3c0", fontSize: 11 }}
+                tick={{ fill: "#94a3b8", fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
                 minTickGap={42}
               />
               <YAxis
-                tick={{ fill: "#9aa3c0", fontSize: 11 }}
+                tick={{ fill: "#94a3b8", fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
                 domain={[0, "auto"]}
                 tickFormatter={(value) =>
-                  formatMetric(value, metric === "cpu_cores" ? 3 : value < 1 ? 2 : 0)
+                  formatMetric(
+                    value,
+                    metric === "cpu_cores"
+                      ? 3
+                      : value > 0 && value < 10 && !Number.isInteger(value)
+                        ? 2
+                        : 0,
+                  )
                 }
               />
               <Tooltip
@@ -142,18 +151,18 @@ export function SignalChart({
                   title,
                 ]}
                 contentStyle={{
-                  backgroundColor: "#0d1020",
+                  backgroundColor: "#111827",
                   borderRadius: 8,
-                  border: "1px solid #262d50",
-                  color: "#e8e6f0",
+                  border: "1px solid #24314a",
+                  color: "#f1f5f9",
                   fontSize: 12,
                 }}
-                labelStyle={{ color: "#9aa3c0", marginBottom: 4 }}
+                labelStyle={{ color: "#94a3b8", marginBottom: 4 }}
               />
               <Line
                 type="linear"
                 dataKey={metric}
-                stroke={metric !== "latency_ms" ? "#00e5ff" : "#00e5a8"}
+                stroke={metric !== "latency_ms" ? "#38bdf8" : "#22c55e"}
                 strokeWidth={2.4}
                 dot={false}
                 activeDot={{ r: 4 }}
@@ -167,10 +176,7 @@ export function SignalChart({
         <div className="empty-chart">
           <Activity size={26} />
           <strong>Aguardando amostras</strong>
-          <span>
-            As taxas aparecem após duas coletas. O laboratório gera tráfego real
-            automaticamente.
-          </span>
+          <span>{emptyHint}</span>
         </div>
       )}
     </section>
@@ -318,10 +324,11 @@ export function ServiceTable({
   );
 }
 
-export function CollectionNote() {
+export function CollectionNote({ numbered = false }: { numbered?: boolean }) {
   return (
     <p className="collection-note">
-      <Clock3 size={13} />¹ Percentual de sondas bem-sucedidas nas amostras
+      <Clock3 size={13} />
+      {numbered ? "¹ " : ""}Percentual de sondas bem-sucedidas nas amostras
       disponíveis do período. Coleta a cada 5 segundos.
     </p>
   );

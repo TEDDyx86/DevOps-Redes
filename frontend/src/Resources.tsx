@@ -68,10 +68,10 @@ export default function Resources({window, refresh, incidents}: {window: Window;
     </select></label><p>{selected?.container_id ? `Contêiner ${selected.container_id.slice(0,12)} · iniciado em ${timeLabel(selected.started_at, true)}` : "Aguardando identidade do contêiner."}</p></section>
     {current && !current.history_available && <div className="notice" role="status">Histórico temporariamente indisponível. As medições atuais são apresentadas separadamente.</div>}
     <div className="charts-grid">
-      <SignalChart data={series} metric="cpu_cores" title="CPU utilizada" subtitle={`Histórico de ${selected?.name ?? service}`} unit="núcleos"/>
-      <SignalChart data={series} metric="memory_mib" title="Memória de trabalho" subtitle="Uso menos cache inativo" unit="MiB"/>
-      <SignalChart data={series} metric="read_kibps" title="Leitura de blocos" subtitle="Taxa medida entre amostras válidas" unit="KiB/s"/>
-      <SignalChart data={series} metric="write_kibps" title="Gravação de blocos" subtitle="Reinícios e falhas interrompem a série" unit="KiB/s"/>
+      <SignalChart data={series} metric="cpu_cores" title="CPU utilizada" subtitle={`Histórico de ${selected?.name ?? service}`} unit="núcleos" emptyHint="Inicie o coletor local (collect_resources.py) e aguarde duas amostras."/>
+      <SignalChart data={series} metric="memory_mib" title="Memória de trabalho" subtitle="Uso menos cache inativo" unit="MiB" emptyHint="Inicie o coletor local (collect_resources.py) e aguarde duas amostras."/>
+      <SignalChart data={series} metric="read_kibps" title="Leitura de blocos" subtitle="Taxa medida entre amostras válidas" unit="KiB/s" emptyHint="Inicie o coletor local (collect_resources.py) e aguarde duas amostras."/>
+      <SignalChart data={series} metric="write_kibps" title="Gravação de blocos" subtitle="Reinícios e falhas interrompem a série" unit="KiB/s" emptyHint="Inicie o coletor local (collect_resources.py) e aguarde duas amostras."/>
     </div>
     <section className="panel"><div className="panel-heading"><div><h2>Incidentes de recursos</h2><p>Orçamentos excedidos e indisponibilidade da coleta.</p></div></div>
       <IncidentsList incidents={incidents.filter(row => ["RecursoCPUElevada", "RecursoMemoriaElevada", "RecursoIOElevado", "RecursoDiscoLivreBaixo", "RecursosColetaIndisponivel"].includes(row.name))} compact/>

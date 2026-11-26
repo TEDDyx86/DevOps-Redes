@@ -17,3 +17,6 @@ playwright-report/
 skills-lock.json
 *.png
 gerarrelatório.py
+video-workbyte/
+scripts/generate_abnt_report.py
+Relatorio_ABNT_*.pdf

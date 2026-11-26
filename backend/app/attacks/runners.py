@@ -29,6 +29,7 @@ BURST_INTERVAL = 0.15
 BRUTEFORCE_HOLD = 60
 SOBRECARGA_HOLD = 45
 STOP_GRACE_SECONDS = 15
+POST_FIRE_OBSERVE_SECONDS = 8
 
 
 def make_client():
@@ -58,19 +59,52 @@ def _firing(client):
         return set()
 
 
+def _poll_alerts(ctx, client, watch_alert, seen_state):
+    try:
+        state = verification.live_alerts(client, PROMETHEUS_BASE)
+    except Exception:
+        state = None
+    expected = [watch_alert] if watch_alert else (
+        ctx.snapshot().get("expected_alerts", []) if hasattr(ctx, "snapshot") else getattr(ctx, "expected", [])
+    )
+    live = verification.summarize_live(expected, state)
+    if hasattr(ctx, "report_alerts"):
+        ctx.report_alerts(live)
+    target_pending = watch_alert in live["pending"] if watch_alert else bool(live["pending"])
+    target_fired = watch_alert in live["fired"] if watch_alert else bool(live["fired"])
+    if target_pending and not seen_state["pending"]:
+        seen_state["pending"] = True
+        name = watch_alert or ", ".join(live["pending"])
+        ctx.log(f"Detectado no Prometheus ({name}: pending — aguardando confirmação da regra)")
+    if target_fired and not seen_state["firing"]:
+        seen_state["firing"] = True
+        name = watch_alert or ", ".join(live["fired"])
+        ctx.log(f"Alerta {name} em firing (incidente/e-mail disparados em tempo real)")
+    return target_fired
+
+
 def _hold(ctx, seconds, watch_alert=None):
     if seconds <= 0:
         ctx.progress(segundos_restantes=0)
         return
     deadline = time.monotonic() + seconds
+    seen = {"pending": False, "firing": False}
+    fired_at = None
     with make_client() as client:
         while True:
             ctx.check_cancelled()
-            restante = max(0, int(deadline - time.monotonic()))
+            now = time.monotonic()
+            restante = max(0, int(deadline - now))
             ctx.progress(segundos_restantes=restante)
-            if watch_alert and watch_alert in _firing(client):
-                ctx.log(f"Alerta {watch_alert} em firing; seguindo para verificação")
-                return
+            if watch_alert and _poll_alerts(ctx, client, watch_alert, seen):
+                if POST_FIRE_OBSERVE_SECONDS <= 0:
+                    ctx.log(f"Alerta {watch_alert} em firing; seguindo para verificação")
+                    return
+                if fired_at is None:
+                    fired_at = now
+                if now - fired_at >= POST_FIRE_OBSERVE_SECONDS:
+                    ctx.log(f"Alerta {watch_alert} confirmado durante o ataque; encerrando")
+                    return
             if restante <= 0:
                 return
             time.sleep(1)
@@ -106,13 +140,22 @@ def bruteforce_servico(ctx, params):
             ctx.progress(segundos_restantes=0)
             return
         deadline = time.monotonic() + BRUTEFORCE_HOLD
+        seen = {"pending": False, "firing": False}
+        fired_at = None
         while True:
             ctx.check_cancelled()
-            restante = max(0, int(deadline - time.monotonic()))
+            now = time.monotonic()
+            restante = max(0, int(deadline - now))
             ctx.progress(tentativas=feitas, rejeitadas=rejeitadas, segundos_restantes=restante)
-            if "AutenticacaoServicoSuspeita" in _firing(client):
-                ctx.log("Alerta AutenticacaoServicoSuspeita em firing; seguindo para verificação")
-                return
+            if _poll_alerts(ctx, client, "AutenticacaoServicoSuspeita", seen):
+                if POST_FIRE_OBSERVE_SECONDS <= 0:
+                    ctx.log("Alerta AutenticacaoServicoSuspeita em firing; seguindo para verificação")
+                    return
+                if fired_at is None:
+                    fired_at = now
+                if now - fired_at >= POST_FIRE_OBSERVE_SECONDS:
+                    ctx.log("Alerta AutenticacaoServicoSuspeita confirmado durante o ataque; encerrando")
+                    return
             if restante <= 0:
                 return
             try:
@@ -190,18 +233,27 @@ def sobrecarga_http(ctx, params):
             time.sleep(max(0.0, (workers / max(taxa, 1)) * 0.5))
 
     clientes = [make_client() for _ in range(workers)]
+    seen = {"pending": False, "firing": False}
+    fired_at = None
     try:
         with ThreadPoolExecutor(max_workers=workers) as pool:
             futures = [pool.submit(worker, client) for client in clientes]
-            while any(not future.done() for future in futures):
-                if ctx.cancelled():
-                    break
-                with make_client() as probe_client:
-                    if "TrafegoAnormal" in _firing(probe_client):
-                        ctx.log("Alerta TrafegoAnormal em firing; encerrando rajada")
-                        fired_early.set()
+            with make_client() as probe_client:
+                while any(not future.done() for future in futures):
+                    if ctx.cancelled():
                         break
-                time.sleep(1)
+                    if _poll_alerts(ctx, probe_client, "TrafegoAnormal", seen):
+                        if POST_FIRE_OBSERVE_SECONDS <= 0:
+                            ctx.log("Alerta TrafegoAnormal em firing; encerrando rajada")
+                            fired_early.set()
+                            break
+                        if fired_at is None:
+                            fired_at = time.monotonic()
+                        if time.monotonic() - fired_at >= POST_FIRE_OBSERVE_SECONDS:
+                            ctx.log("Alerta TrafegoAnormal confirmado durante o ataque; encerrando rajada")
+                            fired_early.set()
+                            break
+                    time.sleep(1)
             for future in futures:
                 future.result()
     finally:
@@ -287,6 +339,8 @@ def flood_dns(ctx, params):
     addr = socket.getaddrinfo(server, port, type=socket.SOCK_DGRAM)[0][4][0]
     deadline = time.monotonic() + duracao
     tentativas = sucesso = falhas = 0
+    seen = {"pending": False, "firing": False}
+    fired_at = None
     with make_client() as prom_client:
         ctx.log(f"Enviando rajada de consultas DNS contra {server}:{port} por até {duracao}s")
         while time.monotonic() < deadline:
@@ -307,9 +361,15 @@ def flood_dns(ctx, params):
                 falhas=falhas,
                 segundos_restantes=max(0, int(deadline - time.monotonic())),
             )
-            if "TrafegoAnormal" in _firing(prom_client):
-                ctx.log("Alerta TrafegoAnormal em firing; encerrando flood DNS")
-                return
+            if _poll_alerts(ctx, prom_client, "TrafegoAnormal", seen):
+                if POST_FIRE_OBSERVE_SECONDS <= 0:
+                    ctx.log("Alerta TrafegoAnormal em firing; encerrando flood DNS")
+                    return
+                if fired_at is None:
+                    fired_at = time.monotonic()
+                if time.monotonic() - fired_at >= POST_FIRE_OBSERVE_SECONDS:
+                    ctx.log("Alerta TrafegoAnormal confirmado durante o flood DNS; encerrando")
+                    return
     ctx.log("Flood DNS concluído (nota: requer baseline calibrada após 120s para disparar TrafegoAnormal)")
 
 
@@ -320,6 +380,8 @@ def flood_smtp(ctx, params):
     port = int(os.environ.get("SMTP_PORT", "2525"))
     deadline = time.monotonic() + duracao
     tentativas = sucesso = falhas = 0
+    seen = {"pending": False, "firing": False}
+    fired_at = None
     with make_client() as prom_client:
         ctx.log(f"Enviando rajada SMTP contra {host}:{port} por até {duracao}s")
         while time.monotonic() < deadline:
@@ -342,9 +404,15 @@ def flood_smtp(ctx, params):
                 falhas=falhas,
                 segundos_restantes=max(0, int(deadline - time.monotonic())),
             )
-            if "TrafegoAnormal" in _firing(prom_client):
-                ctx.log("Alerta TrafegoAnormal em firing; encerrando flood SMTP")
-                return
+            if _poll_alerts(ctx, prom_client, "TrafegoAnormal", seen):
+                if POST_FIRE_OBSERVE_SECONDS <= 0:
+                    ctx.log("Alerta TrafegoAnormal em firing; encerrando flood SMTP")
+                    return
+                if fired_at is None:
+                    fired_at = time.monotonic()
+                if time.monotonic() - fired_at >= POST_FIRE_OBSERVE_SECONDS:
+                    ctx.log("Alerta TrafegoAnormal confirmado durante o flood SMTP; encerrando")
+                    return
             time.sleep(0.5)
     ctx.log("Flood SMTP concluído (nota: requer baseline calibrada após 120s para disparar TrafegoAnormal)")
 
@@ -358,6 +426,8 @@ def flood_postgres(ctx, params):
     deadline = time.monotonic() + duracao
     consultas = sucesso = falhas = 0
     conn = None
+    seen = {"pending": False, "firing": False}
+    fired_at = None
     try:
         with make_client() as prom_client:
             ctx.log(f"Executando rajada de consultas PostgreSQL por até {duracao}s")
@@ -386,9 +456,15 @@ def flood_postgres(ctx, params):
                     falhas=falhas,
                     segundos_restantes=max(0, int(deadline - time.monotonic())),
                 )
-                if "TrafegoAnormal" in _firing(prom_client):
-                    ctx.log("Alerta TrafegoAnormal em firing; encerrando flood PostgreSQL")
-                    return
+                if _poll_alerts(ctx, prom_client, "TrafegoAnormal", seen):
+                    if POST_FIRE_OBSERVE_SECONDS <= 0:
+                        ctx.log("Alerta TrafegoAnormal em firing; encerrando flood PostgreSQL")
+                        return
+                    if fired_at is None:
+                        fired_at = time.monotonic()
+                    if time.monotonic() - fired_at >= POST_FIRE_OBSERVE_SECONDS:
+                        ctx.log("Alerta TrafegoAnormal confirmado durante o flood PostgreSQL; encerrando")
+                        return
     finally:
         if conn is not None:
             try:

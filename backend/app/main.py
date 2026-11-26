@@ -250,6 +250,32 @@ def create_app(settings: Settings | None = None, transport=None):
     def incidents(request: Request):
         return {"incidents": request.app.state.store.list()}
 
+    @app.get("/api/alerts/live")
+    async def live_alerts(request: Request):
+        try:
+            data = await request.app.state.prometheus.query("ALERTS")
+            firing = []
+            pending = []
+            for item in data.get("result", []):
+                metric = item.get("metric", {})
+                name = metric.get("alertname")
+                if not name:
+                    continue
+                state = metric.get("alertstate", "firing")
+                entry = {
+                    "alertname": name,
+                    "service": metric.get("service", ""),
+                    "severity": metric.get("severity", ""),
+                    "state": state,
+                }
+                if state == "pending":
+                    pending.append(entry)
+                elif state == "firing":
+                    firing.append(entry)
+            return {"available": True, "firing": firing, "pending": pending}
+        except (httpx.HTTPError, ValueError, KeyError, TypeError):
+            return {"available": False, "firing": [], "pending": []}
+
     @app.post("/api/webhooks/alerts")
     def receive_alerts(batch: AlertBatch, request: Request, authorization: str = Header(default="")):
         expected = f"Bearer {settings.webhook_token}"

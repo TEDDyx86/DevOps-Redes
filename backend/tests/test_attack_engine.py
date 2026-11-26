@@ -1,4 +1,4 @@
-﻿import threading
+import threading
 import time
 
 from backend.app.attacks.engine import Cancelled, Engine
@@ -115,4 +115,25 @@ def test_subscribe_reproduz_eventos_anteriores():
     stream = engine.subscribe()
     primeiro = next(stream)
     assert primeiro.startswith("data: ") and "agendado" in primeiro
+    engine.stop()
+
+
+def test_alerta_confirmado_durante_ataque_emite_sse_e_preserva_verificacao():
+    def runner(ctx, params):
+        ctx.set_expected_alerts(["HTTPLento"])
+        ctx.report_alerts({"available": True, "pending": ["HTTPLento"], "fired": [], "missing": []})
+        ctx.report_alerts({"available": True, "pending": [], "fired": ["HTTPLento"], "missing": []})
+
+    def verifier_pos_restauracao(expected, cancelled):
+        return {"available": True, "fired": [], "missing": list(expected)}
+
+    engine = Engine(runners={"lentidao-http": runner}, verifier=verifier_pos_restauracao)
+    engine.enqueue("lentidao-http")
+    assert wait_for(lambda: any(e.get("status") == "concluido" for e in engine.recent_events(500)))
+    eventos_alerta = [e for e in engine.recent_events(500) if e["type"] == "alerts"]
+    assert len(eventos_alerta) == 2
+    assert eventos_alerta[0]["data"]["pending"] == ["HTTPLento"]
+    assert eventos_alerta[1]["data"]["fired"] == ["HTTPLento"]
+    historico = engine.snapshot()["history"][0]
+    assert historico["verification"] == {"available": True, "fired": ["HTTPLento"], "missing": []}
     engine.stop()

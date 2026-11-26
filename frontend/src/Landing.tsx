@@ -1,19 +1,22 @@
-import { ArrowRight, Globe2, Mail, Server, ShieldCheck } from "lucide-react";
+import { ArrowRight, Database, Globe2, Mail, Server } from "lucide-react";
 
 const pillars = [
   { icon: Server, title: "HTTP", text: "Disponibilidade e tráfego do serviço." },
+  { icon: Database, title: "PostgreSQL", text: "Consultas, conexões e desempenho SQL." },
   { icon: Globe2, title: "DNS", text: "Resolução de nomes do laboratório." },
   { icon: Mail, title: "SMTP", text: "Fila e entrega do correio local." },
-  { icon: ShieldCheck, title: "Segurança", text: "Alertas, integridade e acesso." },
 ];
 
 export default function Landing({ onEnter }: { onEnter: () => void }) {
   return (
     <main className="landing-shell">
       <header className="landing-top">
-        <span className="landing-brand">
-          WORK<span>BYTE</span>
-        </span>
+        <div className="landing-brand-wrap">
+          <span className="landing-brand">
+            WORK<span>BYTE</span>
+          </span>
+          <small className="landing-brand-sub">AulaRedes · Observabilidade</small>
+        </div>
         <button type="button" className="button primary" onClick={onEnter}>
           Entrar
           <ArrowRight size={17} />

@@ -1,4 +1,4 @@
-﻿import threading
+import threading
 
 import dns.exception
 import httpx
@@ -13,6 +13,7 @@ class FakeCtx:
         self.expected = []
         self.counters = {}
         self.logs = []
+        self.live_alerts_history = []
         self._cancel = threading.Event()
 
     def cancelled(self):
@@ -33,6 +34,9 @@ class FakeCtx:
 
     def progress(self, **counters):
         self.counters.update(counters)
+
+    def report_alerts(self, live):
+        self.live_alerts_history.append(live)
 
 
 def test_forca_bruta_no_servico_faz_tentativas_401_e_define_alerta(monkeypatch):
@@ -116,6 +120,7 @@ def test_lentidao_http_ativa_slow_e_restaura_normal(monkeypatch):
 
     monkeypatch.setattr(runners, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(handler), trust_env=False))
     monkeypatch.setattr(runners, "lab_token", lambda: "token-de-teste")
+    monkeypatch.setattr(runners, "POST_FIRE_OBSERVE_SECONDS", 0)
     ctx = FakeCtx()
     runners.lentidao_http(ctx, {"duracao": 5})
     assert modos[0] == b'{"mode":"slow"}'
@@ -138,6 +143,7 @@ def test_indisponibilidade_restaura_modo_normal_mesmo_interrompido(monkeypatch):
 
     monkeypatch.setattr(runners, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(handler), trust_env=False))
     monkeypatch.setattr(runners, "lab_token", lambda: "token-de-teste")
+    monkeypatch.setattr(runners, "POST_FIRE_OBSERVE_SECONDS", 0)
     ctx = FakeCtx()
     threading.Timer(0.2, ctx.request_cancel).start()
     try:
@@ -193,6 +199,7 @@ def test_flood_dns_para_quando_alerta_fica_firing(monkeypatch):
     monkeypatch.setattr(runners.dns.query, "udp", fake_udp)
     monkeypatch.setattr(runners, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(handler), trust_env=False))
     monkeypatch.setattr(runners.time, "sleep", lambda _s: None)
+    monkeypatch.setattr(runners, "POST_FIRE_OBSERVE_SECONDS", 0)
     ctx = FakeCtx()
     runners.flood_dns(ctx, {"duracao": 3})
     assert len(queries) > 0
@@ -223,6 +230,7 @@ def test_flood_smtp_envia_para_destinatario_aceito_e_para_em_firing(monkeypatch)
     monkeypatch.setattr(runners.smtplib, "SMTP", FakeSMTP)
     monkeypatch.setattr(runners, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(handler), trust_env=False))
     monkeypatch.setattr(runners.time, "sleep", lambda _s: None)
+    monkeypatch.setattr(runners, "POST_FIRE_OBSERVE_SECONDS", 0)
     ctx = FakeCtx()
     runners.flood_smtp(ctx, {"duracao": 3})
     assert enviados == ["aluno@aularedes.test"]
@@ -251,6 +259,7 @@ def test_flood_postgres_para_quando_alerta_fica_firing(monkeypatch):
     monkeypatch.setattr(runners.psycopg, "connect", lambda *a, **kw: FakeConn())
     monkeypatch.setattr(runners, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(handler), trust_env=False))
     monkeypatch.setattr(runners.time, "sleep", lambda _s: None)
+    monkeypatch.setattr(runners, "POST_FIRE_OBSERVE_SECONDS", 0)
     ctx = FakeCtx()
     runners.flood_postgres(ctx, {"duracao": 3})
     assert execs and execs[0] == "SELECT 1"
@@ -263,6 +272,7 @@ def test_adulteracao_mapeia_para_a_raiz_do_container_e_restaura(monkeypatch, tmp
     original = b"aularedes.local {\n  errors\n}\n"
     alvo.write_bytes(original)
     monkeypatch.setattr(runners, "INFRA_ROOT", tmp_path)
+    monkeypatch.setattr(runners, "POST_FIRE_OBSERVE_SECONDS", 0)
     monkeypatch.setattr(
         runners,
         "make_client",
@@ -318,6 +328,7 @@ def test_interrupcao_para_e_reinicia_via_api_do_docker(monkeypatch):
 
     monkeypatch.setattr(runners, "docker_client", lambda: _docker_falso(registro))
     monkeypatch.setattr(runners, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(disparo_firing), trust_env=False))
+    monkeypatch.setattr(runners, "POST_FIRE_OBSERVE_SECONDS", 0)
     ctx = FakeCtx()
     runners.interrupcao_servico(ctx, {"alvo": "dns", "duracao": 1})
     acoes = [item[0] for item in registro if item[0] in ("stop", "start")]
@@ -353,3 +364,26 @@ def test_interrupcao_falha_se_container_nao_for_localizado(monkeypatch):
 
 def test_registro_runners_cobre_o_catalogo():
     assert set(runners.RUNNERS) == {ataque["id"] for ataque in catalog.CATALOG}
+
+
+def test_hold_reporta_pending_e_firing_em_tempo_real_durante_o_ataque(monkeypatch):
+    polls = {"n": 0}
+
+    def handler(request):
+        polls["n"] += 1
+        state = "pending" if polls["n"] == 1 else "firing"
+        return httpx.Response(200, json={"status": "success", "data": {"result": [
+            {"metric": {"alertname": "HTTPLento", "alertstate": state}},
+        ]}})
+
+    monkeypatch.setattr(runners, "make_client", lambda: httpx.Client(transport=httpx.MockTransport(handler), trust_env=False))
+    monkeypatch.setattr(runners.time, "sleep", lambda _s: None)
+    monkeypatch.setattr(runners, "POST_FIRE_OBSERVE_SECONDS", 0)
+    ctx = FakeCtx()
+    runners._hold(ctx, 10, watch_alert="HTTPLento")
+    assert ctx.live_alerts_history == [
+        {"available": True, "pending": ["HTTPLento"], "fired": [], "missing": []},
+        {"available": True, "pending": [], "fired": ["HTTPLento"], "missing": []},
+    ]
+    assert any("pending" in log for log in ctx.logs)
+    assert any("firing" in log for log in ctx.logs)

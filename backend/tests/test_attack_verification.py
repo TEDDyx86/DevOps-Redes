@@ -1,4 +1,4 @@
-﻿import httpx
+import httpx
 import pytest
 
 from backend.app.attacks import verification
@@ -38,3 +38,34 @@ def test_verify_sem_dados_nunca_inventa_sucesso():
 
 def test_verify_sem_alertas_esperados():
     assert verification.verify([], {"AutenticacaoSuspeita"}) == {"available": True, "fired": [], "missing": []}
+
+
+def test_live_alerts_separa_pending_e_firing():
+    def handler(request):
+        assert request.url.params["query"] == "ALERTS"
+        return httpx.Response(200, json={"status": "success", "data": {"result": [
+            {"metric": {"alertname": "HTTPLento", "alertstate": "pending", "service": "web-demo", "severity": "warning"}},
+            {"metric": {"alertname": "TrafegoAnormal", "alertstate": "firing", "service": "dns", "severity": "warning"}},
+        ]}})
+
+    with httpx.Client(transport=httpx.MockTransport(handler), trust_env=False) as client:
+        state = verification.live_alerts(client, "http://prom:9090")
+    assert state["available"] is True
+    assert state["pending"] == ["HTTPLento"]
+    assert state["firing"] == ["TrafegoAnormal"]
+    summary = verification.summarize_live(["HTTPLento", "TrafegoAnormal", "DNSIndisponivel"], state)
+    assert summary == {
+        "available": True,
+        "pending": ["HTTPLento"],
+        "fired": ["TrafegoAnormal"],
+        "missing": ["DNSIndisponivel"],
+    }
+
+
+def test_summarize_live_sem_prometheus():
+    assert verification.summarize_live(["HTTPLento"], None) == {
+        "available": False,
+        "pending": [],
+        "fired": [],
+        "missing": ["HTTPLento"],
+    }

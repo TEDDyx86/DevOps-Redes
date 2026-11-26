@@ -1,26 +1,22 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Activity,
-  Cpu,
   ArrowRight,
   ArrowUpRight,
   Bell,
   ChevronRight,
   Database,
-  FlaskConical,
   Globe2,
   LayoutDashboard,
   LogOut,
   Mail,
   Menu,
-  Network,
   Radio,
   RefreshCw,
   Server,
   ShieldCheck,
   SlidersHorizontal,
   Swords,
-  Terminal,
   TriangleAlert,
 } from "lucide-react";
 import { formatMetric, request } from "./api";
@@ -30,11 +26,10 @@ import {
   saveSidebarPreference,
 } from "./sidebarPreference";
 import {
-  CollectionNote,
   IncidentsList,
   ServiceDetails,
-  ServiceTable,
   SignalChart,
+  StatusBadge,
   timeLabel,
 } from "./components";
 import LabView from "./Lab";
@@ -51,31 +46,53 @@ import {
   emptyPostgres,
   emptyDNS,
   emptySMTP,
-  servicePage,
 } from "./serviceState";
 import type {
   DNSOverview,
   SMTPOverview,
   Incident,
   Lab,
+  LiveAlerts,
   Overview,
   Page,
   PostgresOverview,
   Window,
 } from "./types";
 
+const ALL_PAGES: Page[] = [
+  "overview",
+  "service",
+  "postgres",
+  "dns",
+  "smtp",
+  "resources",
+  "security",
+  "incidents",
+  "lab",
+  "attacks",
+];
+
 const navigation: { id: Page; label: string; icon: typeof Activity }[] = [
   { id: "overview", label: "Visão geral", icon: LayoutDashboard },
-  { id: "service", label: "Serviço HTTP", icon: Server },
-  { id: "postgres", label: "PostgreSQL", icon: Database },
-  { id: "dns", label: "DNS", icon: Globe2 },
-  { id: "smtp", label: "SMTP", icon: Mail },
-  { id: "resources", label: "Recursos", icon: Cpu },
+  { id: "service", label: "Serviços", icon: Server },
   { id: "security", label: "Segurança", icon: ShieldCheck },
   { id: "incidents", label: "Incidentes", icon: Bell },
-  { id: "lab", label: "Laboratório", icon: FlaskConical },
-  { id: "attacks", label: "Ataques", icon: Swords },
+  { id: "attacks", label: "Ataques & Lab", icon: Swords },
 ];
+
+const SERVICE_TABS: { id: Page; label: string }[] = [
+  { id: "service", label: "Aplicação HTTP" },
+  { id: "postgres", label: "PostgreSQL" },
+  { id: "dns", label: "DNS" },
+  { id: "smtp", label: "SMTP" },
+  { id: "resources", label: "Recursos (CPU/RAM/I/O)" },
+];
+
+const ATTACK_TABS: { id: Page; label: string }[] = [
+  { id: "attacks", label: "Ataques automatizados (11)" },
+  { id: "lab", label: "Laboratório manual" },
+];
+
 const pageTitles: Record<Page, { title: string; subtitle: string }> = {
   resources: {
     title: "Recursos",
@@ -83,7 +100,7 @@ const pageTitles: Record<Page, { title: string; subtitle: string }> = {
   },
   overview: {
     title: "Visão geral",
-    subtitle: "O que está acontecendo com seus serviços, agora.",
+    subtitle: "Sala de controle: disponibilidade, desempenho e alertas dos 4 serviços.",
   },
   service: {
     title: "Aplicação HTTP",
@@ -115,15 +132,13 @@ const pageTitles: Record<Page, { title: string; subtitle: string }> = {
   },
   attacks: {
     title: "Ataques",
-    subtitle: "Simule incidentes controlados e acompanhe os alertas no Prometheus.",
+    subtitle: "Simule incidentes controlados e acompanhe os alertas no Prometheus em tempo real.",
   },
 };
 
 function initialPage(): Page {
-  const hash = location.hash.slice(1);
-  return navigation.some((item) => item.id === hash)
-    ? (hash as Page)
-    : "overview";
+  const hash = location.hash.slice(1) as Page;
+  return ALL_PAGES.includes(hash) ? hash : "overview";
 }
 
 export default function App({
@@ -148,6 +163,7 @@ export default function App({
   const [smtpData, setSMTP] = useState<SMTPOverview | null>(null);
   const [smtpError, setSMTPError] = useState<string | null>(null);
   const [lab, setLab] = useState<Lab | null>(null);
+  const [liveAlerts, setLiveAlerts] = useState<LiveAlerts | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [incidentError, setIncidentError] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -166,6 +182,10 @@ export default function App({
     addEventListener("hashchange", change);
     return () => removeEventListener("hashchange", change);
   }, []);
+
+  useEffect(() => {
+    globalThis.scrollTo?.({ top: 0, behavior: "instant" });
+  }, [page]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -195,9 +215,12 @@ export default function App({
         request<SMTPOverview>(`/api/smtp?window=${window}`, {
           signal: controller.signal,
         }),
+        request<LiveAlerts>("/api/alerts/live", {
+          signal: controller.signal,
+        }),
       ]);
       if (controller.signal.aborted) return;
-      const [overview, history, laboratory, database, dns, smtp] = results;
+      const [overview, history, laboratory, database, dns, smtp, live] = results;
       if (smtp.status === "fulfilled") {
         setSMTP(smtp.value);
         setSMTPError(null);
@@ -247,6 +270,7 @@ export default function App({
         setIncidentError(false);
       } else setIncidentError(true);
       setLab(laboratory.status === "fulfilled" ? laboratory.value : null);
+      setLiveAlerts(live.status === "fulfilled" ? live.value : null);
       setLoading(false);
       running = false;
     }
@@ -259,6 +283,10 @@ export default function App({
       clearInterval(timer);
     };
   }, [window, refresh]);
+
+  const triggerRefresh = useCallback(() => {
+    setRefresh((value) => value + 1);
+  }, []);
 
   function go(next: Page) {
     location.hash = next;
@@ -274,6 +302,10 @@ export default function App({
   }
 
   const activeIncidents = incidents.filter(
+    (item) => item.status === "firing",
+  ).length;
+  const httpIncidents = incidents.filter((item) => item.service === "web-demo");
+  const httpActiveIncidents = httpIncidents.filter(
     (item) => item.status === "firing",
   ).length;
   const stale =
@@ -389,6 +421,11 @@ export default function App({
       : httpCurrent.status;
   const healthy = healthStatus === "ok";
   const title = pageTitles[page];
+  const sidebarPage: Page = ["service", "postgres", "dns", "smtp", "resources"].includes(page)
+    ? "service"
+    : ["attacks", "lab"].includes(page)
+      ? "attacks"
+      : page;
 
   return (
     <div
@@ -405,7 +442,7 @@ export default function App({
       )}
       <Sidebar
         navigation={navigation}
-        page={page}
+        page={sidebarPage}
         activeIncidents={activeIncidents}
         collapsed={collapsed}
         onToggle={toggleSidebar}
@@ -428,6 +465,21 @@ export default function App({
             <strong>{title.title}</strong>
           </div>
           <div className="topbar-right">
+            {liveAlerts &&
+              (liveAlerts.firing.length > 0 || liveAlerts.pending.length > 0) && (
+                <a
+                  href="#incidents"
+                  className={`topbar-alert-pill ${
+                    liveAlerts.firing.length > 0 ? "firing" : "pending"
+                  }`}
+                  title="Alertas em andamento no Prometheus"
+                >
+                  <i />
+                  {liveAlerts.firing.length > 0
+                    ? `${liveAlerts.firing.length} ${liveAlerts.firing.length === 1 ? "alerta ativo" : "alertas ativos"}`
+                    : `${liveAlerts.pending.length} detectando (pending)`}
+                </a>
+              )}
             <span className="environment">
               <i />
               Ambiente local
@@ -465,7 +517,7 @@ export default function App({
               <p>{title.subtitle}</p>
             </div>
             <div className="heading-actions">
-              {page !== "security" && (
+              {!["security", "incidents", "lab", "attacks"].includes(page) && (
                 <label className="window-select">
                   <SlidersHorizontal size={15} />
                   <span className="sr-only">Período dos gráficos</span>
@@ -492,6 +544,36 @@ export default function App({
               </button>
             </div>
           </div>
+          {sidebarPage === "service" && (
+            <div className="sub-tabs" role="navigation" aria-label="Serviços e recursos">
+              {SERVICE_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  className={`filter-pill ${page === tab.id ? "active" : ""}`}
+                  onClick={() => go(tab.id)}
+                  aria-current={page === tab.id ? "page" : undefined}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {sidebarPage === "attacks" && (
+            <div className="sub-tabs" role="navigation" aria-label="Simulação e ataques">
+              {ATTACK_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  className={`filter-pill ${page === tab.id ? "active" : ""}`}
+                  onClick={() => go(tab.id)}
+                  aria-current={page === tab.id ? "page" : undefined}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
           {error && (
             <div className="notice error" role="alert">
               <TriangleAlert size={18} />
@@ -535,14 +617,15 @@ export default function App({
               error={postgresError}
             />
           ) : page === "lab" ? (
-            <LabView
-              state={lab}
-              onChanged={() => setRefresh((value) => value + 1)}
-            />
+            <LabView state={lab} onChanged={triggerRefresh} />
           ) : page === "attacks" ? (
-            <AttacksView onChanged={() => setRefresh((value) => value + 1)} />
+            <AttacksView
+              onChanged={triggerRefresh}
+              services={[httpCurrent, pgCurrent, dnsCurrent, smtpCurrent]}
+              liveAlerts={liveAlerts}
+            />
           ) : page === "incidents" ? (
-            <IncidentsView incidents={incidents} />
+            <IncidentsView incidents={incidents} liveAlerts={liveAlerts} />
           ) : (
             <>
               <section
@@ -585,87 +668,228 @@ export default function App({
                   {displayData ? "Coleta ativa" : "Sem coleta"}
                 </div>
               </section>
-              <div className="metric-strip">
-                <div className="metric">
-                  <span>
-                    Serviços monitorados <Server size={15} />
-                  </span>
-                  <strong>
-                    04<small> / 04 previstos</small>
-                  </strong>
-                  <p>HTTP, PostgreSQL, DNS e SMTP integrados</p>
-                </div>
-                <div className="metric">
-                  <span>
-                    Disponibilidade HTTP <Activity size={15} />
-                  </span>
-                  <strong>
-                    {formatMetric(service?.availability_percent)}
-                    <small> %</small>
-                  </strong>
-                  <p>Calculada sobre as sondas disponíveis</p>
-                </div>
-                <div className="metric">
-                  <span>
-                    Latência HTTP p95 <Radio size={15} />
-                  </span>
-                  <strong>
-                    {formatMetric(service?.p95_ms, 0)}
-                    <small> ms</small>
-                  </strong>
-                  <p>95% das requisições abaixo desse valor</p>
-                </div>
-                <div className="metric">
-                  <span>
-                    Incidentes ativos <Bell size={15} />
-                  </span>
-                  <strong>
-                    {incidentError
-                      ? "—"
-                      : String(activeIncidents).padStart(2, "0")}
-                  </strong>
-                  <p>
-                    {activeIncidents
-                      ? "Verifique os eventos confirmados"
-                      : "Nenhum alerta confirmado em aberto"}
-                  </p>
-                </div>
-              </div>
-              {page === "service" && (
-                <ServiceDetails
-                  service={service}
-                  onTestFailure={() => go("lab")}
-                />
-              )}
-              <section className="panel services-panel">
-                <div className="panel-heading">
-                  <div>
-                    <h2>
-                      Serviços monitorados{" "}
-                      <span className="count-badge">
-                        {page === "overview" ? 4 : 1}
+              {page === "service" ? (
+                <>
+                  <div className="metric-strip">
+                    <div className="metric">
+                      <span>
+                        Latência da sonda <Activity size={15} />
                       </span>
-                    </h2>
-                    <p>Estado observado na última coleta.</p>
+                      <strong>
+                        {formatMetric(service?.latency_ms, 0)}
+                        <small> ms</small>
+                      </strong>
+                      <p>Tempo da última verificação /health</p>
+                    </div>
+                    <div className="metric">
+                      <span>
+                        Disponibilidade HTTP <Activity size={15} />
+                      </span>
+                      <strong>
+                        {formatMetric(service?.availability_percent)}
+                        <small> %</small>
+                      </strong>
+                      <p>Calculada sobre as sondas disponíveis</p>
+                    </div>
+                    <div className="metric">
+                      <span>
+                        Latência HTTP p95 <Radio size={15} />
+                      </span>
+                      <strong>
+                        {formatMetric(service?.p95_ms, 0)}
+                        <small> ms</small>
+                      </strong>
+                      <p>95% das requisições abaixo desse valor</p>
+                    </div>
+                    <div className="metric">
+                      <span>
+                        Incidentes HTTP ativos <Bell size={15} />
+                      </span>
+                      <strong>
+                        {incidentError
+                          ? "—"
+                          : String(httpActiveIncidents).padStart(2, "0")}
+                      </strong>
+                      <p>
+                        {httpActiveIncidents
+                          ? "Verifique os eventos confirmados"
+                          : "Nenhum alerta confirmado em aberto"}
+                      </p>
+                    </div>
                   </div>
-                  <button
-                    className="text-button"
-                    onClick={() => go(page === "service" ? "lab" : "service")}
-                  >
-                    {page === "service" ? "Abrir laboratório" : "Ver serviço"}
-                    <ArrowRight size={15} />
-                  </button>
-                </div>
-                <ServiceTable
-                  services={
-                    page === "overview"
-                      ? [httpCurrent, pgCurrent, dnsCurrent, smtpCurrent]
-                      : [httpCurrent]
-                  }
-                  onSelect={(id) => go(servicePage(id))}
-                />
-                <CollectionNote />
-              </section>
+                  <ServiceDetails
+                    service={service}
+                    onTestFailure={() => go("attacks")}
+                  />
+                </>
+              ) : (
+                <section className="control-grid" aria-label="Serviços monitorados">
+                  <article className={`panel control-card status-${httpCurrent.status}`}>
+                    <div className="control-card-head">
+                      <div>
+                        <h2>
+                          <Server size={16} /> Aplicação HTTP
+                        </h2>
+                        <p>{httpCurrent.target} · Workbyte Store</p>
+                      </div>
+                      <StatusBadge status={httpCurrent.status} />
+                    </div>
+                    <div className="control-metrics">
+                      <div>
+                        <span>Disponib.</span>
+                        <strong>{formatMetric(httpCurrent.availability_percent)} %</strong>
+                      </div>
+                      <div>
+                        <span>RPS</span>
+                        <strong>{formatMetric(service?.rps, 2)}</strong>
+                      </div>
+                      <div>
+                        <span>Latência p95</span>
+                        <strong>{formatMetric(service?.p95_ms, 0)} ms</strong>
+                      </div>
+                      <div>
+                        <span>Erros 4xx/5xx</span>
+                        <strong>{formatMetric(service?.error_percent)} %</strong>
+                      </div>
+                    </div>
+                    <div className="control-card-foot">
+                      <span>
+                        Conexões ativas: {formatMetric(service?.connections ?? null, 0)} · Sonda:{" "}
+                        {formatMetric(httpCurrent.latency_ms, 0)} ms
+                      </span>
+                      <button className="text-button" onClick={() => go("service")}>
+                        Detalhes <ArrowRight size={14} />
+                      </button>
+                    </div>
+                  </article>
+
+                  <article className={`panel control-card status-${pgCurrent.status}`}>
+                    <div className="control-card-head">
+                      <div>
+                        <h2>
+                          <Database size={16} /> PostgreSQL
+                        </h2>
+                        <p>{pgCurrent.target}</p>
+                      </div>
+                      <StatusBadge status={pgCurrent.status} />
+                    </div>
+                    <div className="control-metrics">
+                      <div>
+                        <span>Disponib.</span>
+                        <strong>{formatMetric(pgCurrent.availability_percent)} %</strong>
+                      </div>
+                      <div>
+                        <span>QPS</span>
+                        <strong>{formatMetric(pgDisplay?.stats.qps, 2)}</strong>
+                      </div>
+                      <div>
+                        <span>Conexões</span>
+                        <strong>
+                          {formatMetric(pgDisplay?.stats.connections, 0)} /{" "}
+                          {formatMetric(pgDisplay?.stats.connection_limit, 0)}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>Slow (&gt;100ms)</span>
+                        <strong>{formatMetric(pgDisplay?.stats.slow_statements, 0)}</strong>
+                      </div>
+                    </div>
+                    <div className="control-card-foot">
+                      <span>
+                        Tamanho:{" "}
+                        {formatMetric(
+                          pgDisplay?.stats.database_bytes == null
+                            ? null
+                            : pgDisplay.stats.database_bytes / 1048576,
+                        )}{" "}
+                        MiB · Rollbacks: {formatMetric(pgDisplay?.stats.rollbacks_per_second, 2)}/s
+                      </span>
+                      <button className="text-button" onClick={() => go("postgres")}>
+                        Detalhes <ArrowRight size={14} />
+                      </button>
+                    </div>
+                  </article>
+
+                  <article className={`panel control-card status-${dnsCurrent.status}`}>
+                    <div className="control-card-head">
+                      <div>
+                        <h2>
+                          <Globe2 size={16} /> DNS CoreDNS
+                        </h2>
+                        <p>{dnsCurrent.target}</p>
+                      </div>
+                      <StatusBadge status={dnsCurrent.status} />
+                    </div>
+                    <div className="control-metrics">
+                      <div>
+                        <span>Disponib.</span>
+                        <strong>{formatMetric(dnsCurrent.availability_percent)} %</strong>
+                      </div>
+                      <div>
+                        <span>QPS</span>
+                        <strong>{formatMetric(dnsDisplay?.stats.qps, 2)}</strong>
+                      </div>
+                      <div>
+                        <span>Resolução</span>
+                        <strong>{formatMetric(dnsCurrent.latency_ms, 1)} ms</strong>
+                      </div>
+                      <div>
+                        <span>Erros serv.</span>
+                        <strong>{formatMetric(dnsDisplay?.stats.server_error_percent)} %</strong>
+                      </div>
+                    </div>
+                    <div className="control-card-foot">
+                      <span>
+                        UDP: {dnsDisplay?.stats.udp_rcode ?? "—"} · TCP:{" "}
+                        {dnsDisplay?.stats.tcp_rcode ?? "—"} · NXDOMAIN:{" "}
+                        {formatMetric(dnsDisplay?.stats.nxdomain_percent)} %
+                      </span>
+                      <button className="text-button" onClick={() => go("dns")}>
+                        Detalhes <ArrowRight size={14} />
+                      </button>
+                    </div>
+                  </article>
+
+                  <article className={`panel control-card status-${smtpCurrent.status}`}>
+                    <div className="control-card-head">
+                      <div>
+                        <h2>
+                          <Mail size={16} /> SMTP Local
+                        </h2>
+                        <p>{smtpCurrent.target} · aiosmtpd</p>
+                      </div>
+                      <StatusBadge status={smtpCurrent.status} />
+                    </div>
+                    <div className="control-metrics">
+                      <div>
+                        <span>Disponib.</span>
+                        <strong>{formatMetric(smtpCurrent.availability_percent)} %</strong>
+                      </div>
+                      <div>
+                        <span>Fila</span>
+                        <strong>{formatMetric(smtpDisplay?.stats.queue, 0)}</strong>
+                      </div>
+                      <div>
+                        <span>Entrega</span>
+                        <strong>{formatMetric(smtpDisplay?.stats.delivery_percent)} %</strong>
+                      </div>
+                      <div>
+                        <span>Latência p95</span>
+                        <strong>{formatMetric(smtpDisplay?.stats.delivery_p95_ms, 0)} ms</strong>
+                      </div>
+                    </div>
+                    <div className="control-card-foot">
+                      <span>
+                        Última hora: {formatMetric(smtpDisplay?.stats.last_hour, 0)} msg ·
+                        Rejeições: {formatMetric(smtpDisplay?.stats.rejected, 0)}
+                      </span>
+                      <button className="text-button" onClick={() => go("smtp")}>
+                        Detalhes <ArrowRight size={14} />
+                      </button>
+                    </div>
+                  </article>
+                </section>
+              )}
               <div className="charts-grid">
                 <SignalChart
                   data={data?.series ?? []}
@@ -686,7 +910,9 @@ export default function App({
                 <section className="panel incidents-panel">
                   <div className="panel-heading">
                     <div>
-                      <h2>Incidentes recentes</h2>
+                      <h2>
+                        {page === "service" ? "Incidentes HTTP" : "Incidentes recentes"}
+                      </h2>
                       <p>Da detecção à recuperação.</p>
                     </div>
                     <button
@@ -697,20 +923,23 @@ export default function App({
                       <ArrowRight size={15} />
                     </button>
                   </div>
-                  <IncidentsList incidents={incidents} compact />
+                  <IncidentsList
+                    incidents={page === "service" ? httpIncidents : incidents}
+                    compact
+                  />
                 </section>
                 <aside className="lab-invitation">
                   <span className="invitation-icon">
-                    <FlaskConical size={23} />
+                    <Swords size={23} />
                   </span>
-                  <span className="eyebrow">APRENDA NA PRÁTICA</span>
-                  <h2>E se o serviço parar?</h2>
+                  <span className="eyebrow">SIMULAÇÃO AO VIVO</span>
+                  <h2>Teste um ataque agora.</h2>
                   <p>
-                    Provoque lentidão ou indisponibilidade e acompanhe o caminho
-                    da falha até o alerta por e-mail.
+                    Dispare falhas ou floods controlados e acompanhe alertas
+                    pending/firing em tempo real.
                   </p>
-                  <button className="button primary" onClick={() => go("lab")}>
-                    Explorar laboratório <ArrowUpRight size={17} />
+                  <button className="button primary" onClick={() => go("attacks")}>
+                    Abrir ataques <ArrowUpRight size={17} />
                   </button>
                 </aside>
               </div>

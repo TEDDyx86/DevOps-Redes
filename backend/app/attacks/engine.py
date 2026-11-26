@@ -29,6 +29,7 @@ class AttackContext:
         self._lock = threading.Lock()
         self.expected_alerts = []
         self.counters = {}
+        self.live_alerts = None
         self._cancel = threading.Event()
 
     def cancelled(self):
@@ -54,9 +55,21 @@ class AttackContext:
             snapshot = dict(self.counters)
         self._publish("progress", counters=snapshot)
 
+    def report_alerts(self, live):
+        copy_live = copy.deepcopy(live)
+        with self._lock:
+            if self.live_alerts == copy_live:
+                return
+            self.live_alerts = copy_live
+        self._publish("alerts", data=copy.deepcopy(copy_live))
+
     def snapshot(self):
         with self._lock:
-            return {"counters": dict(self.counters), "expected_alerts": list(self.expected_alerts)}
+            return {
+                "counters": dict(self.counters),
+                "expected_alerts": list(self.expected_alerts),
+                "live_alerts": copy.deepcopy(self.live_alerts),
+            }
 
 
 class Engine:
@@ -85,6 +98,7 @@ class Engine:
             "params": cleaned,
             "expected_alerts": catalog.expected_alerts(attack_id),
             "counters": {},
+            "live_alerts": None,
             "verification": None,
             "error": None,
             "started_at": None,
@@ -172,6 +186,7 @@ class Engine:
             state = context.snapshot()
             view["counters"] = state["counters"]
             view["expected_alerts"] = state["expected_alerts"]
+            view["live_alerts"] = state["live_alerts"]
         return view
 
     def _loop(self):
@@ -208,7 +223,17 @@ class Engine:
             with self._lock:
                 entry["status"] = "verificando"
             self._publish("status", entry_id=entry["entry_id"], status="verificando", message="Verificando alertas no Prometheus")
-            result = self._verifier(context.snapshot()["expected_alerts"], context.cancelled)
+            snap_before_verify = context.snapshot()
+            result = self._verifier(snap_before_verify["expected_alerts"], context.cancelled)
+            live_fired = (snap_before_verify.get("live_alerts") or {}).get("fired") or []
+            if live_fired:
+                fired_set = set(result.get("fired", [])) | set(live_fired)
+                expected_list = snap_before_verify["expected_alerts"]
+                result = {
+                    "available": True,
+                    "fired": [a for a in expected_list if a in fired_set] or sorted(fired_set),
+                    "missing": [a for a in expected_list if a not in fired_set],
+                }
             with self._lock:
                 entry["verification"] = result
             self._publish("verification", entry_id=entry["entry_id"], data=result)
@@ -223,6 +248,7 @@ class Engine:
             state = context.snapshot()
             entry["counters"] = state["counters"]
             entry["expected_alerts"] = state["expected_alerts"]
+            entry["live_alerts"] = state["live_alerts"]
             with self._lock:
                 entry["ended_at"] = _now()
                 self._history.append(entry)

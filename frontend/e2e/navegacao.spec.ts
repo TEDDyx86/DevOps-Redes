@@ -34,21 +34,18 @@ function loadCredentials(): { username: string; password: string } {
   };
 }
 
-const PAGES: {
+const SIDEBAR_AREAS: {
   id: string;
-  label: string;
   heading: string;
   markers: string[];
 }[] = [
   {
     id: "overview",
-    label: "Visão geral",
     heading: "Visão geral",
-    markers: ["Serviços monitorados", "Disponibilidade HTTP", "Latência HTTP p95"],
+    markers: ["Aplicação HTTP", "PostgreSQL", "DNS CoreDNS", "SMTP Local"],
   },
   {
     id: "service",
-    label: "Serviço HTTP",
     heading: "Aplicação HTTP",
     markers: [
       "Requisições por segundo",
@@ -58,61 +55,46 @@ const PAGES: {
     ],
   },
   {
-    id: "postgres",
+    id: "security",
+    heading: "Segurança",
+    markers: ["Vulnerabilidades conhecidas"],
+  },
+  {
+    id: "incidents",
+    heading: "Incidentes",
+    markers: ["Histórico de incidentes"],
+  },
+  {
+    id: "attacks",
+    heading: "Ataques",
+    markers: ["Monitoramento ao vivo", "Catálogo de ataques", "Fila de execução"],
+  },
+];
+
+const SERVICE_SUBTABS: { label: string; heading: string; markers: string[] }[] = [
+  {
     label: "PostgreSQL",
     heading: "PostgreSQL",
     markers: ["Disponibilidade SQL", "Conexões abertas", "Consultas lentas"],
   },
   {
-    id: "dns",
     label: "DNS",
     heading: "DNS",
     markers: ["Disponibilidade DNS", "Tempo de resolução", "Registro verificado"],
   },
   {
-    id: "smtp",
     label: "SMTP",
     heading: "SMTP",
     markers: ["Mensagens na fila", "Entregues do total aceito", "O caminho da mensagem"],
   },
   {
-    id: "resources",
-    label: "Recursos",
+    label: "Recursos (CPU/RAM/I/O)",
     heading: "Recursos",
     markers: ["Consumo por serviço", "CPU utilizada"],
   },
-  {
-    id: "security",
-    label: "Segurança",
-    heading: "Segurança",
-    markers: [
-      "Vulnerabilidades conhecidas",
-      "Integridade das configurações",
-      "Tráfego dos serviços",
-      "Acesso ao painel",
-    ],
-  },
-  {
-    id: "incidents",
-    label: "Incidentes",
-    heading: "Incidentes",
-    markers: ["Histórico de incidentes"],
-  },
-  {
-    id: "lab",
-    label: "Laboratório",
-    heading: "Laboratório",
-    markers: ["Controle do serviço HTTP"],
-  },
-  {
-    id: "attacks",
-    label: "Ataques",
-    heading: "Ataques",
-    markers: ["Catálogo de ataques", "Fila de execução"],
-  },
 ];
 
-test("login pela interface e navegação completa nas 10 páginas do painel", async ({
+test("login pela interface e navegação completa nas 5 áreas e sub-abas do painel", async ({
   page,
 }) => {
   const { username, password } = loadCredentials();
@@ -139,7 +121,7 @@ test("login pela interface e navegação completa nas 10 páginas do painel", as
   await expect(page.getByRole("heading", { level: 1, name: "Visão geral" })).toBeVisible();
   await expect(page.locator(".health-strip")).toBeVisible();
 
-  for (const item of PAGES) {
+  for (const item of SIDEBAR_AREAS) {
     await page.locator(`nav[aria-label="Navegação principal"] a[href="#${item.id}"]`).click();
     await expect(
       page.getByRole("heading", { level: 1, name: item.heading }),
@@ -148,6 +130,35 @@ test("login pela interface e navegação completa nas 10 páginas do painel", as
       await expect(page.locator("main#main")).toContainText(marker);
     }
   }
+
+  // Sub-abas de Serviços (PostgreSQL, DNS, SMTP, Recursos)
+  await page.locator('nav[aria-label="Navegação principal"] a[href="#service"]').click();
+  for (const sub of SERVICE_SUBTABS) {
+    await page.getByRole("button", { name: sub.label, exact: true }).click();
+    await expect(
+      page.getByRole("heading", { level: 1, name: sub.heading }),
+    ).toBeVisible();
+    for (const marker of sub.markers) {
+      await expect(page.locator("main#main")).toContainText(marker);
+    }
+  }
+
+  // Sub-abas de Segurança
+  await page.locator('nav[aria-label="Navegação principal"] a[href="#security"]').click();
+  for (const [label, marker] of [
+    ["Integridade", "Integridade das configurações"],
+    ["Tráfego", "Tráfego dos serviços"],
+    ["Autenticação", "Acesso ao painel"],
+  ] as const) {
+    await page.getByRole("button", { name: label, exact: true }).click();
+    await expect(page.locator("main#main")).toContainText(marker);
+  }
+
+  // Sub-aba Laboratório manual dentro de Ataques & Lab
+  await page.locator('nav[aria-label="Navegação principal"] a[href="#attacks"]').click();
+  await page.getByRole("button", { name: "Laboratório manual", exact: true }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Laboratório" })).toBeVisible();
+  await expect(page.locator("main#main")).toContainText("Controle do serviço HTTP");
 
   // Verifica responsividade mobile sem transbordamento horizontal
   await page.setViewportSize({ width: 390, height: 844 });
